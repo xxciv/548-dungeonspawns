@@ -49,6 +49,7 @@ class Spawn:
     mask: int = 1
     phase: int = 0
     phase_group: int = 0
+    phase_mask: int = 1
     zone: int = 0
     respawn: int = 0
     # creature only
@@ -110,6 +111,7 @@ def spawn_columns(cur, schema, kind):
         "mask": pick(cols, "spawnMask"),
         "phase": pick(cols, "phaseId"),
         "phase_group": pick(cols, "phaseGroup"),
+        "phase_mask": pick(cols, "phaseMask"),
         "zone": pick(cols, "zoneId"),
         "respawn": pick(cols, "spawntimesecs"),
         "modelid": pick(cols, "modelid"),
@@ -155,6 +157,7 @@ def load_spawns(cur, schema, kind, maps):
             select.append("0")
     else:
         select += [col("rot0"), col("rot1"), col("rot2"), col("rot3"), col("anim", "100"), col("state", "1")]
+    select.append(col("phase_mask", "1"))
 
     sql = f"SELECT {', '.join(select)} FROM `{schema}`.`{kind}` s{join}"
     params = ()
@@ -173,6 +176,7 @@ def load_spawns(cur, schema, kind, maps):
         else:
             s.rot = (float(r[12] or 0), float(r[13] or 0), float(r[14] or 0), float(r[15] or 0))
             s.anim, s.state = int(r[16] or 0), int(r[17] or 0)
+        s.phase_mask = int(r[-1] if r[-1] is not None else 1)
         spawns.append(s)
     return spawns, f
 
@@ -405,6 +409,11 @@ def target_mask(r, mask_map, instance_maps, shift, old_maps):
     return r.mask, "kept"
 
 
+def in_default_phase(s):
+    """True unless the spawn only exists in quest phases of an old-style phaseMask (bit 1 = default phase)."""
+    return s.phase_mask == 0 or bool(s.phase_mask & 1)
+
+
 @dataclass
 class Result:
     kind: str
@@ -481,12 +490,13 @@ def write_reports(res, out_dir, names, tgt_entries):
     for s in sorted(res.missing, key=lambda s: (s.map, z.get(id(s), 0), s.entry, s.guid)):
         near = nearest_same_entry(s, tgt_groups)
         row = [s.map, z.get(id(s), 0), s.entry, names.get(s.entry, ""), s.guid, s.x, s.y, s.z, s.o,
-               s.mask, s.phase, s.phase_group]
+               s.mask, s.phase, s.phase_group, s.phase_mask]
         if k == "creature":
             row += [movement_label(s), s.wander, s.path]
         row += [int(s.pooled), int(s.event), int(s.entry in tgt_entries), "" if near is None else round(near, 1)]
         rows.append(row)
-    header = ["map", "zone", "entry", "name", "ref_guid", "x", "y", "z", "o", "spawnMask", "phaseId", "phaseGroup"]
+    header = ["map", "zone", "entry", "name", "ref_guid", "x", "y", "z", "o", "spawnMask", "phaseId", "phaseGroup",
+              "phaseMask"]
     if k == "creature":
         header += ["movement", "wander_distance", "path_id"]
     header += ["pooled", "game_event", "target_has_template", "nearest_same_entry_in_target_yd"]
@@ -595,8 +605,9 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
                      ref_schema):
     kind = res.kind
     var = "@CGUID" if kind == "creature" else "@OGUID"
-    skipped_template, skipped_linked = Counter(), 0
+    skipped_template, skipped_linked, skipped_phase = Counter(), 0, 0
     guessed = {"shifted": set(), "kept": set()}
+    copy_phase_mask = bool(tgt_fields.get("phase_mask"))
     rows_by_map = defaultdict(list)
     for s in sorted(res.missing, key=lambda s: (s.map, s.entry, s.guid)):
         if s.pooled or s.event:
@@ -605,12 +616,15 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
         if s.entry not in tgt_entries:
             skipped_template[s.entry] += 1
             continue
+        if not copy_phase_mask and not in_default_phase(s):
+            skipped_phase += 1
+            continue
         mask, how = target_mask(s, mask_map, instance_maps, shift, old_maps)
         if how:
             guessed[how].add(s.map)
         rows_by_map[s.map].append((s, mask))
 
-    cols = ["guid", "id", "map", "mask", "phase", "phase_group", "modelid", "x", "y", "z", "o", "respawn"]
+    cols = ["guid", "id", "map", "mask", "phase", "phase_group", "phase_mask", "modelid", "x", "y", "z", "o", "respawn"]
     if kind == "creature":
         cols += ["equip", "wander", "move"]
     else:
@@ -629,6 +643,10 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
             fh.write("-- Not copied: pool/game_event links, gameobject_addon, SmartAI rows keyed by guid.\n")
         if skipped_linked:
             fh.write(f"-- Skipped {skipped_linked} spawns that belong to a pool or game event in the reference.\n")
+        if skipped_phase:
+            fh.write(f"-- Skipped {skipped_phase} spawns that only exist in quest phases (reference phaseMask without "
+                     f"the default phase);\n-- the target uses phaseId, and there is no safe automatic conversion. "
+                     f"They are listed in missing_{kind}.csv.\n")
         if skipped_template:
             fh.write(f"-- Skipped {sum(skipped_template.values())} spawns whose entry has no {kind}_template in the "
                      f"target: {', '.join(str(e) for e in sorted(skipped_template))}\n")
@@ -648,7 +666,7 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
                 n += 1
                 patrol = kind == "creature" and s.move == 2
                 v = {"guid": f"{var}+{n}", "id": s.entry, "map": s.map, "mask": mask, "phase": s.phase,
-                     "phase_group": s.phase_group, "modelid": 0, "x": s.x, "y": s.y, "z": s.z, "o": s.o,
+                     "phase_group": s.phase_group, "phase_mask": s.phase_mask, "modelid": 0, "x": s.x, "y": s.y, "z": s.z, "o": s.o,
                      "respawn": s.respawn, "equip": s.equip,
                      "wander": 0.0 if patrol else s.wander, "move": 0 if patrol else s.move,
                      "rot0": s.rot[0], "rot1": s.rot[1], "rot2": s.rot[2], "rot3": s.rot[3],
@@ -659,7 +677,7 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
                     comment += " (patrol path not copied)"
                 fh.write("(" + ", ".join(sql_num(v[c]) for c in cols) + ")" + sep
                          + (f" -- {comment.strip()}" if comment.strip() else "") + "\n")
-    return n, skipped_linked, sum(skipped_template.values())
+    return n, skipped_linked, sum(skipped_template.values()), skipped_phase
 
 
 def write_wander_sql(path, res, tgt_fields):
@@ -782,12 +800,12 @@ def main(argv=None):
         results.append(res)
 
         if args.emit_sql:
-            n, linked, no_tpl = write_import_sql(os.path.join(args.out, f"import_missing_{kind}.sql"), res, tgt_fields,
+            n, linked, no_tpl, phased = write_import_sql(os.path.join(args.out, f"import_missing_{kind}.sql"), res, tgt_fields,
                                                  set(tgt_names), mask_map, instance_maps, args.instance_mask_shift,
                                                  old_numbering_maps(ref, instance_maps),
                                                  names, args.reference)
             print(f"  {kind}: wrote {n} inserts to import_missing_{kind}.sql "
-                  f"(skipped {linked} pooled/event, {no_tpl} without template)")
+                  f"(skipped {linked} pooled/event, {no_tpl} without template, {phased} quest-phase only)")
             if kind == "creature":
                 n = write_wander_sql(os.path.join(args.out, "fix_wander_creature.sql"), res, tgt_fields)
                 print(f"  creature: wrote {n} wander fixes to fix_wander_creature.sql")

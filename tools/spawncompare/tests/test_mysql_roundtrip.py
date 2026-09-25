@@ -20,8 +20,8 @@ REF, TGT = "sc_test_ref", "sc_test_tgt"
 REF_SCHEMA = """
 CREATE TABLE creature (guid INT UNSIGNED PRIMARY KEY, id INT UNSIGNED, map SMALLINT UNSIGNED,
   zoneId SMALLINT UNSIGNED DEFAULT 0, areaId SMALLINT UNSIGNED DEFAULT 0, spawnMask TINYINT UNSIGNED DEFAULT 1,
-  phaseUseFlags TINYINT UNSIGNED DEFAULT 0, PhaseId INT UNSIGNED DEFAULT 0, PhaseGroup INT UNSIGNED DEFAULT 0,
-  modelid INT UNSIGNED DEFAULT 0, equipment_id TINYINT DEFAULT 0, position_x FLOAT, position_y FLOAT,
+  phaseUseFlags TINYINT UNSIGNED DEFAULT 0, phaseMask INT UNSIGNED DEFAULT 1, PhaseId INT UNSIGNED DEFAULT 0,
+  PhaseGroup INT UNSIGNED DEFAULT 0, modelid INT UNSIGNED DEFAULT 0, equipment_id TINYINT DEFAULT 0, position_x FLOAT, position_y FLOAT,
   position_z FLOAT, orientation FLOAT, spawntimesecs INT UNSIGNED DEFAULT 120, wander_distance FLOAT DEFAULT 0,
   MovementType TINYINT UNSIGNED DEFAULT 0);
 CREATE TABLE creature_addon (guid INT UNSIGNED PRIMARY KEY, waypointPathId INT UNSIGNED DEFAULT 0);
@@ -72,7 +72,10 @@ INSERT INTO creature (guid,id,map,zoneId,spawnMask,position_x,position_y,positio
   (9,47162,36,0,3,-190,-400,55,1,0,0),  -- Deadmines, missing (mask guessed 3 -> 6)
   (10,101,36,0,1,-100,-400,55,1,3,1),   -- Deadmines, missing
   (11,101,1,14,1,300,-4000,10,0,0,0),   -- Durotar, missing (MoP-changed zone)
-  (12,101,389,0,1,0,0,-20,0,0,0);       -- Ragefire Chasm, missing (MoP-changed map)
+  (12,101,389,0,1,0,0,-20,0,0,0),       -- Ragefire Chasm, missing (MoP-changed map)
+  (13,101,0,40,1,5300,5000,10,0,0,0);   -- Westfall, missing, quest phase only (phaseMask set below)
+UPDATE creature SET phaseMask = 65535 WHERE guid = 5;
+UPDATE creature SET phaseMask = 4 WHERE guid = 13;
 INSERT INTO creature_addon VALUES (4, 400);
 INSERT INTO pool_members VALUES (0, 6, 1);
 INSERT INTO instance_template VALUES (34),(36);
@@ -142,17 +145,20 @@ class MySQLRoundTrip(unittest.TestCase):
         skip = tempfile.mkdtemp()
         self.run_tool(skip, "--skip-mop-changes")
         missing = read_csv(os.path.join(skip, "missing_creature.csv"))
-        self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10])
+        self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10, 13])
 
         out = tempfile.mkdtemp()
         self.run_tool(out, "--emit-sql", "--exclude-maps", "389", "--exclude-zones", "14")
 
         missing = read_csv(os.path.join(out, "missing_creature.csv"))
-        self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10])
+        self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10, 13])
         by_guid = {int(r["ref_guid"]): r for r in missing}
         self.assertEqual(by_guid[6]["pooled"], "1")
         self.assertEqual(by_guid[7]["target_has_template"], "0")
         self.assertEqual(by_guid[5]["zone"], "40")
+        self.assertEqual(by_guid[13]["phaseMask"], "4")
+        with open(os.path.join(out, "import_missing_creature.sql"), encoding="utf-8") as fh:
+            self.assertIn("-- Skipped 1 spawns that only exist in quest phases", fh.read())
 
         diffs = {int(r["ref_guid"]): r["issues"] for r in read_csv(os.path.join(out, "diffs_creature.csv"))}
         self.assertEqual(diffs, {1: "not_wandering", 2: "should_not_wander", 4: "missing_path"})
@@ -184,7 +190,7 @@ class MySQLRoundTrip(unittest.TestCase):
         out2 = tempfile.mkdtemp()
         self.run_tool(out2, "--skip-mop-changes")
         remaining = sorted(int(r["ref_guid"]) for r in read_csv(os.path.join(out2, "missing_creature.csv")))
-        self.assertEqual(remaining, [6, 7])
+        self.assertEqual(remaining, [6, 7, 13])
         issues = [r["issues"] for r in read_csv(os.path.join(out2, "diffs_creature.csv"))]
         self.assertEqual(issues, ["missing_path"])
 

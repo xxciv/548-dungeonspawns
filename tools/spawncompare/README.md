@@ -169,6 +169,10 @@ Before applying:
   `reference mask << 1`, which is right for 5-player dungeons (SkyFire's own Stockade uses 2 for
   normal). The file marks every guessed map with a WARNING. **Raids need different bits.** Check a
   working raid in your DB before importing raid spawns.
+- **Phases:** SkyFire phases spawns by `phaseId`, but the 5.4.8 reference uses an old-style `phaseMask`.
+  Spawns in the default phase (including "all phases" masks such as 65535) are imported unphased.
+  Spawns that exist *only* in quest phases (masks without bit 1, e.g. 2, 4, 256) are skipped, because
+  unphased they'd be visible to everyone. They stay listed in `missing_*.csv` with their `phaseMask`.
 - **Not copied:** pool and game-event membership (those spawns are skipped entirely, so rares and holiday
   NPCs don't become permanent), `creature_addon` (auras, emotes, mounts), waypoint paths,
   formations and guid-based SmartAI. Patrolling mobs are imported standing still, and the missing

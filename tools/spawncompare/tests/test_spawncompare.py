@@ -117,6 +117,13 @@ class MaskTests(unittest.TestCase):
         self.assertEqual([sc.target_mask(s, {}, {36}, 1, old) for s in mop_ref], [(6, "kept"), (4, "kept"), (0, "kept")])
 
 
+class PhaseTests(unittest.TestCase):
+    def test_default_phase(self):
+        for mask, expected in ((0, True), (1, True), (3, True), (65535, True), (4294967295, True),
+                               (2, False), (4, False), (192, False)):
+            self.assertEqual(sc.in_default_phase(spawn(1, 1, 0, 0, phase_mask=mask)), expected, mask)
+
+
 class ZoneTests(unittest.TestCase):
     def test_filter_include_and_exclude(self):
         ref = [spawn(1, 1, 0, 0, zone=12), spawn(2, 1, 500, 0, zone=14)]
