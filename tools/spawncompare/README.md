@@ -49,6 +49,16 @@ pip install pymysql
 python spawncompare.py --reference world434 --target world --user root
 ```
 
+On Debian/Ubuntu, `pip install` fails with `externally-managed-environment`. Use the distribution's package,
+or a virtual environment:
+
+```sh
+sudo apt install python3-pymysql
+# or
+python3 -m venv .venv && .venv/bin/pip install pymysql
+.venv/bin/python spawncompare.py --reference world434 --target world --user root
+```
+
 The password comes from `--password`, then `$MYSQL_PWD`, and otherwise you're prompted for it.
 
 Useful options:
