@@ -13,7 +13,37 @@ Cataclysm 4.3.4 reference database. It reports:
 With `--emit-sql` it also writes SQL that imports the missing spawns and fixes wander settings.
 The tool itself never writes to either database; you review the SQL and apply it yourself.
 
-## 1. Get a 4.3.4 reference database
+## 1. Get a reference database
+
+Two references work well. They can live side by side in different schemas.
+
+### Option A: a 5.4.8 database (best for the empty dungeons)
+
+[alexkulya/pandaria_5.4.8](https://github.com/alexkulya/pandaria_5.4.8) is another 5.4.8 core, still
+maintained (last commit September 2026). Its repository includes a full world database,
+`sql/base/world_04_03_2023.zip` (76 MB zipped, 380 MB of SQL, about 315,000 creature and 170,000
+gameobject spawns). It has spawns for every instance that stock SkyFire leaves empty, including
+Deadmines, Ragefire Chasm and the MoP dungeons and raids. Its dungeon spawnMasks already use MoP
+numbering, and the tool detects that.
+
+**The dump contains `CREATE DATABASE world; USE world;`. Imported as-is, it writes into your
+SkyFire `world` database.** Strip those two lines and import it under another name:
+
+```sh
+git clone --depth 1 https://github.com/alexkulya/pandaria_5.4.8.git
+cd pandaria_5.4.8/sql/base && unzip world_04_03_2023.zip
+mysql -u root -p -e "CREATE DATABASE world548ref"
+sed -E '/^CREATE DATABASE .*`world`/d; /^USE `world`;/d' world_04_03_2023.sql \
+  | mysql -u root -p --max-allowed-packet=1G world548ref
+```
+
+The server also needs `max_allowed_packet` of at least 256M. Otherwise the import fails with
+`Server has gone away`; set it in `my.cnf` under `[mysqld]` or with
+`SET GLOBAL max_allowed_packet=1073741824`. Then use `--reference world548ref`. With a 5.4.8
+reference, `--skip-mop-changes` isn't needed.
+
+### Option B: a 4.3.4 database
+
 
 Use **The Cataclysm Preservation Project (TCPP)**, the actively maintained TrinityCore 4.3.4 fork. It
 has full spawns for the Cataclysm-era dungeons, including the Cataclysm Deadmines.

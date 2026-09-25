@@ -78,9 +78,12 @@ class IssueTests(unittest.TestCase):
                          ["should_not_wander"])
         self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, move=2, path=10), spawn(2, 1, 0, 0, **idle)),
                          ["missing_path"])
-        # target has MovementType 2 but no path row: still missing
-        self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, move=2, path=10), spawn(2, 1, 0, 0, move=2)),
-                         ["missing_path"])
+        # both patrol; the path may come from creature_template_addon, so a missing addon row is not an issue
+        self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, move=2, path=10), spawn(2, 1, 0, 0, move=2)), [])
+        # a path row on a wandering spawn is unused: identical spawns are never reported
+        same = dict(move=1, wander=5.0, path=7)
+        self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, **same), spawn(2, 1, 0, 0, **same)), [])
+        self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, move=2), spawn(2, 1, 0, 0, move=2)), [])
         self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, move=1, wander=10.0),
                                             spawn(2, 1, 0, 0, move=1, wander=3.0)), ["wander_distance"])
         self.assertEqual(sc.movement_issues(spawn(1, 1, 0, 0, **wander), spawn(2, 1, 0, 0, **wander)), [])
@@ -98,9 +101,20 @@ class MaskTests(unittest.TestCase):
     def test_learned_then_guessed(self):
         pairs = [(spawn(1, 1, 0, 0, map=34, mask=1), spawn(2, 1, 0, 0, map=34, mask=2), 0)] * 3
         mask_map = sc.learn_mask_map(pairs)
-        self.assertEqual(sc.target_mask(spawn(3, 1, 0, 0, map=34, mask=1), mask_map, {34, 36}, 1), (2, False))
-        self.assertEqual(sc.target_mask(spawn(3, 1, 0, 0, map=36, mask=3), mask_map, {34, 36}, 1), (6, True))
-        self.assertEqual(sc.target_mask(spawn(3, 1, 0, 0, map=0, mask=1), mask_map, {34, 36}, 1), (1, False))
+        instances = {34, 36}
+        cata_ref = [spawn(1, 1, 0, 0, map=36, mask=3), spawn(2, 1, 0, 0, map=36, mask=2)]
+        old = sc.old_numbering_maps(cata_ref, instances)
+        self.assertEqual(old, {36})
+        self.assertEqual(sc.target_mask(spawn(3, 1, 0, 0, map=34, mask=1), mask_map, instances, 1, old), (2, None))
+        self.assertEqual(sc.target_mask(cata_ref[0], mask_map, instances, 1, old), (6, "shifted"))
+        self.assertEqual(sc.target_mask(cata_ref[1], mask_map, instances, 1, old), (4, "shifted"))
+        self.assertEqual(sc.target_mask(spawn(3, 1, 0, 0, map=0, mask=1), mask_map, instances, 1, old), (1, None))
+
+    def test_mop_numbered_reference_is_kept(self):
+        mop_ref = [spawn(1, 1, 0, 0, map=36, mask=6), spawn(2, 1, 0, 0, map=36, mask=4), spawn(3, 1, 0, 0, map=36, mask=0)]
+        old = sc.old_numbering_maps(mop_ref, {36})
+        self.assertEqual(old, set())
+        self.assertEqual([sc.target_mask(s, {}, {36}, 1, old) for s in mop_ref], [(6, "kept"), (4, "kept"), (0, "kept")])
 
 
 class ZoneTests(unittest.TestCase):

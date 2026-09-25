@@ -2,9 +2,10 @@
 
 Tools and notes for fixing missing or broken spawns in a Project SkyFire 5.4.8 world database.
 
-- [`tools/spawncompare`](tools/spawncompare/README.md) compares your world DB against a Cataclysm 4.3.4
-  reference (The Cataclysm Preservation Project). It reports missing spawns, double spawns and
-  wander/patrol problems, and can generate SQL to import the missing spawns.
+- [`tools/spawncompare`](tools/spawncompare/README.md) compares your world DB against a reference world DB,
+  either another 5.4.8 database (alexkulya/pandaria_5.4.8) or a Cataclysm 4.3.4 one (The Cataclysm
+  Preservation Project). It reports missing spawns, double spawns and wander/patrol problems, and can
+  generate SQL to import the missing spawns.
 
 ## Why some dungeons are empty
 
@@ -21,4 +22,6 @@ Mogu'shan Vaults (1008), Heart of Fear (1009), Siege of Niuzao Temple (1011) and
 - No SkyFire world update since then has added spawns for any of the maps above, and the core has no
   boss scripts for them. Its Deadmines script is still the pre-Cataclysm version.
 - Ragefire Chasm, Scarlet Halls/Monastery, Scholomance and the MoP instances can't be filled from a
-  4.3.4 database: MoP rebuilt or added them. Use `spawncompare --skip-mop-changes` to keep them out.
+  4.3.4 database, because MoP rebuilt or added them. Use `spawncompare --skip-mop-changes` to keep them out.
+  The 5.4.8 world DB shipped with alexkulya/pandaria_5.4.8 has spawns for all of them.
+- The spawns alone won't bring boss encounters: SkyFire has no scripts for these instances.

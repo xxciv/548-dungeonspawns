@@ -117,7 +117,7 @@ def spawn_columns(cur, schema, kind):
     if kind == "creature":
         fields.update(
             wander=pick(cols, "wander_distance", "spawndist"),
-            move=pick(cols, "MovementType"),
+            move=pick(cols, "MovementType", "movement_type"),
             equip=pick(cols, "equipment_id"),
         )
     else:
@@ -326,8 +326,10 @@ def find_duplicates(tgt, ref, radius, matched_tgt_ids):
 
 def movement_issues(r, t):
     issues = []
-    ref_path = r.move == 2 or r.path != 0
-    tgt_path = t.move == 2 and t.path != 0
+    # Judge both sides the same way: a waypoint path only matters with MovementType 2, and the path
+    # itself may live outside creature_addon (e.g. creature_template_addon), so only the type is compared.
+    ref_path = r.move == 2
+    tgt_path = t.move == 2
     if ref_path and not tgt_path:
         issues.append("missing_path")
     elif r.wanders and not t.wanders and not tgt_path:
@@ -384,13 +386,23 @@ def learn_mask_map(pairs):
     return {key: counter.most_common(1)[0][0] for key, counter in seen.items()}
 
 
-def target_mask(r, mask_map, instance_maps, shift):
-    """Returns (mask, guessed)."""
+def old_numbering_maps(ref, instance_maps):
+    """Instance maps whose reference spawnMasks use pre-MoP difficulty numbering.
+
+    Before 5.x, difficulty 0 was normal, so instance masks set bit 0 (1 = normal, 3 = normal+heroic).
+    From 5.x on, difficulty 0 is unused in instances and masks never set bit 0 (2 = normal, 6 = both)."""
+    return {s.map for s in ref if s.map in instance_maps and s.mask & 1}
+
+
+def target_mask(r, mask_map, instance_maps, shift, old_maps):
+    """Returns (mask, how) where how is None (learned or open world), 'shifted' or 'kept'."""
     if (r.map, r.mask) in mask_map:
-        return mask_map[(r.map, r.mask)], False
-    if r.map in instance_maps:
-        return r.mask << shift, True
-    return r.mask, False
+        return mask_map[(r.map, r.mask)], None
+    if r.map not in instance_maps:
+        return r.mask, None
+    if r.map in old_maps:
+        return r.mask << shift, "shifted"
+    return r.mask, "kept"
 
 
 @dataclass
@@ -579,10 +591,12 @@ def sql_num(v):
     return str(v)
 
 
-def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps, shift, names, ref_schema):
+def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps, shift, old_maps, names,
+                     ref_schema):
     kind = res.kind
     var = "@CGUID" if kind == "creature" else "@OGUID"
-    skipped_template, skipped_linked, guessed_maps = Counter(), 0, set()
+    skipped_template, skipped_linked = Counter(), 0
+    guessed = {"shifted": set(), "kept": set()}
     rows_by_map = defaultdict(list)
     for s in sorted(res.missing, key=lambda s: (s.map, s.entry, s.guid)):
         if s.pooled or s.event:
@@ -591,9 +605,9 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
         if s.entry not in tgt_entries:
             skipped_template[s.entry] += 1
             continue
-        mask, guessed = target_mask(s, mask_map, instance_maps, shift)
-        if guessed:
-            guessed_maps.add(s.map)
+        mask, how = target_mask(s, mask_map, instance_maps, shift, old_maps)
+        if how:
+            guessed[how].add(s.map)
         rows_by_map[s.map].append((s, mask))
 
     cols = ["guid", "id", "map", "mask", "phase", "phase_group", "modelid", "x", "y", "z", "o", "respawn"]
@@ -618,18 +632,21 @@ def write_import_sql(path, res, tgt_fields, tgt_entries, mask_map, instance_maps
         if skipped_template:
             fh.write(f"-- Skipped {sum(skipped_template.values())} spawns whose entry has no {kind}_template in the "
                      f"target: {', '.join(str(e) for e in sorted(skipped_template))}\n")
-        if guessed_maps:
-            fh.write(f"-- WARNING: spawnMask for instance maps {', '.join(map(str, sorted(guessed_maps)))} was guessed "
-                     f"as reference mask << {shift} (no matched spawns to learn from).\n"
-                     f"-- Check it against a working instance of the same type in your database before applying; "
-                     f"raids use different bits.\n")
+        if guessed["shifted"]:
+            fh.write(f"-- WARNING: spawnMask for instance maps {', '.join(map(str, sorted(guessed['shifted'])))} was "
+                     f"guessed as reference mask << {shift}: the reference uses pre-MoP difficulty numbering and\n"
+                     f"-- there were no matched spawns to learn from. Right for 5-player dungeons; raids use "
+                     f"different bits, so check a working raid in your database first.\n")
+        if guessed["kept"]:
+            fh.write(f"-- NOTE: spawnMask for instance maps {', '.join(map(str, sorted(guessed['kept'])))} was copied "
+                     f"unchanged: the reference already uses MoP difficulty numbering there.\n")
         fh.write(f"\nSET {var} := (SELECT COALESCE(MAX(`{tgt_fields['guid']}`), 0) FROM `{kind}`);\n")
         for m, items in sorted(rows_by_map.items()):
             fh.write(f"\n-- map {m}: {len(items)} spawns\n")
             fh.write(f"INSERT INTO `{kind}` ({col_list}) VALUES\n")
             for i, (s, mask) in enumerate(items):
                 n += 1
-                patrol = kind == "creature" and (s.move == 2 or s.path != 0)
+                patrol = kind == "creature" and s.move == 2
                 v = {"guid": f"{var}+{n}", "id": s.entry, "map": s.map, "mask": mask, "phase": s.phase,
                      "phase_group": s.phase_group, "modelid": 0, "x": s.x, "y": s.y, "z": s.z, "o": s.o,
                      "respawn": s.respawn, "equip": s.equip,
@@ -695,8 +712,8 @@ def build_parser():
     p.add_argument("--out", default="spawn_report", help="output directory (default spawn_report)")
     p.add_argument("--emit-sql", action="store_true", help="also write import/fix SQL files for review")
     p.add_argument("--instance-mask-shift", type=int, default=1,
-                   help="spawnMask shift used for instance maps when it cannot be learned (default 1: 4.3.4 "
-                        "dungeon masks -> 5.4.8)")
+                   help="spawnMask shift for instance maps whose reference masks use pre-MoP numbering, when it "
+                        "cannot be learned from matched spawns (default 1: 4.3.4 dungeon masks -> 5.4.8)")
     p.add_argument("--top", type=int, default=25, help="zones to list in the console summary")
     return p
 
@@ -767,6 +784,7 @@ def main(argv=None):
         if args.emit_sql:
             n, linked, no_tpl = write_import_sql(os.path.join(args.out, f"import_missing_{kind}.sql"), res, tgt_fields,
                                                  set(tgt_names), mask_map, instance_maps, args.instance_mask_shift,
+                                                 old_numbering_maps(ref, instance_maps),
                                                  names, args.reference)
             print(f"  {kind}: wrote {n} inserts to import_missing_{kind}.sql "
                   f"(skipped {linked} pooled/event, {no_tpl} without template)")
