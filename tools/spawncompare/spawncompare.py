@@ -26,6 +26,13 @@ from dataclasses import dataclass
 
 # Eastern Kingdoms, Kalimdor, Outland, Northrend, Deepholm, Tol Barad.
 DEFAULT_MAPS = "0,1,530,571,646,732"
+
+# Areas Mists of Pandaria rebuilt or re-populated, so 4.3.4 data there is outdated.
+# Maps: old Scarlet Monastery and Scholomance (replaced by maps 1001/1004/1007), Ragefire Chasm (redone in 5.0).
+MOP_CHANGED_MAPS = {189, 289, 389}
+# Zones: Durotar and Orgrimmar (Darkspear rebellion, Kor'kron), Dustwallow Marsh (Theramore's Fall),
+# Northern Barrens (Crossroads escalation), Western Plaguelands (Scholomance), Tirisfal Glades (Scarlet Monastery).
+MOP_CHANGED_ZONES = {14, 1637, 15, 17, 28, 85}
 KINDS = ("creature", "gameobject")
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_$]+$")
 
@@ -414,11 +421,12 @@ def compare(kind, ref, tgt, match_radius, dup_radius):
     return Result(kind, ref, tgt, pairs, missing, extra, duplicates, diffs, zone_of)
 
 
-def filter_zones(result, zones):
+def filter_zones(result, include=None, exclude=()):
     z = result.zone_of
 
     def keep(s):
-        return z.get(id(s), 0) in zones
+        zone = z.get(id(s), 0)
+        return (include is None or zone in include) and zone not in exclude
 
     result.ref = [s for s in result.ref if keep(s)]
     result.tgt = [s for s in result.tgt if keep(s)]
@@ -673,6 +681,12 @@ def build_parser():
     p.add_argument("--maps", default=DEFAULT_MAPS,
                    help=f"comma separated map ids, or 'all' for every map in the reference (default {DEFAULT_MAPS})")
     p.add_argument("--zones", help="only report these zone ids (comma separated)")
+    p.add_argument("--exclude-maps", help="leave out these map ids (comma separated)")
+    p.add_argument("--exclude-zones", help="leave out these zone ids (comma separated)")
+    p.add_argument("--skip-mop-changes", action="store_true",
+                   help="leave out maps and zones Mists of Pandaria changed: maps "
+                        f"{','.join(map(str, sorted(MOP_CHANGED_MAPS)))}, zones "
+                        f"{','.join(map(str, sorted(MOP_CHANGED_ZONES)))}")
     p.add_argument("--tables", default="creature,gameobject", help="creature, gameobject or both")
     p.add_argument("--match-radius", type=float, default=10.0,
                    help="max distance in yards for a target spawn to count as the same spawn (default 10)")
@@ -712,10 +726,20 @@ def main(argv=None):
 
     maps = load_map_list(cur, args.reference, kinds) if args.maps.strip().lower() == "all" else parse_int_list(args.maps)
     zones = set(parse_int_list(args.zones)) if args.zones else None
+    exclude_maps = set(parse_int_list(args.exclude_maps)) if args.exclude_maps else set()
+    exclude_zones = set(parse_int_list(args.exclude_zones)) if args.exclude_zones else set()
+    if args.skip_mop_changes:
+        exclude_maps |= MOP_CHANGED_MAPS
+        exclude_zones |= MOP_CHANGED_ZONES
+    maps = [m for m in maps if m not in exclude_maps]
+    if not maps:
+        raise SystemExit("error: no maps left to compare")
     instance_maps = load_instance_maps(cur, args.target) | load_instance_maps(cur, args.reference)
     os.makedirs(args.out, exist_ok=True)
     print(f"Comparing `{args.reference}` (reference) with `{args.target}` (target) on maps: "
           f"{', '.join(map(str, maps))}")
+    if exclude_zones:
+        print(f"Leaving out zones: {', '.join(map(str, sorted(exclude_zones)))}")
 
     results = []
     for kind in kinds:
@@ -731,8 +755,12 @@ def main(argv=None):
 
         res = compare(kind, ref, tgt, args.match_radius, args.duplicate_radius)
         mask_map = learn_mask_map(res.pairs)
-        if zones is not None:
-            filter_zones(res, zones)
+        if zones is not None or exclude_zones:
+            unzoned = sum(1 for r in ref if not r.zone)
+            if ref and unzoned > len(ref) // 2:
+                print(f"  warning: {unzoned} of {len(ref)} reference {kind} spawns have no zoneId, "
+                      f"so zone filters can't place them")
+            filter_zones(res, zones, exclude_zones)
         write_reports(res, args.out, names, set(tgt_names))
         results.append(res)
 

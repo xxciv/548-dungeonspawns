@@ -104,6 +104,18 @@ class MaskTests(unittest.TestCase):
 
 
 class ZoneTests(unittest.TestCase):
+    def test_filter_include_and_exclude(self):
+        ref = [spawn(1, 1, 0, 0, zone=12), spawn(2, 1, 500, 0, zone=14)]
+        tgt = [spawn(10, 1, 0, 0)]
+        res = sc.compare("creature", ref, tgt, 10, 1)
+        sc.filter_zones(res, exclude={14})
+        self.assertEqual([s.guid for s in res.ref], [1])
+        self.assertEqual(res.missing, [])
+        res = sc.compare("creature", ref, tgt, 10, 1)
+        sc.filter_zones(res, include={14})
+        self.assertEqual([s.guid for s in res.missing], [2])
+        self.assertEqual(res.tgt, [])
+
     def test_zone_from_nearest_reference(self):
         ref = [spawn(1, 1, 0, 0, zone=12), spawn(2, 1, 150, 0, zone=40)]
         tgt = [spawn(10, 9, 10, 0), spawn(11, 9, 140, 0), spawn(12, 9, 5000, 0)]

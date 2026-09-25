@@ -67,11 +67,19 @@ Useful options:
 |---|---|---|
 | `--maps` | `0,1,530,571,646,732` | Eastern Kingdoms, Kalimdor, Outland, Northrend, Deepholm, Tol Barad. `all` = every map in the reference, dungeons included |
 | `--zones` | all | Only report these zone IDs, e.g. `--zones 40` for Westfall |
+| `--skip-mop-changes` | off | Leave out the maps and zones MoP rebuilt (see below). Recommended whenever you generate import SQL |
+| `--exclude-maps` / `--exclude-zones` | none | Leave out your own list of map or zone IDs, e.g. `--exclude-zones 1519` for Stormwind City |
 | `--tables` | `creature,gameobject` | Which spawn tables to compare |
 | `--match-radius` | `10` | How far (yards) a spawn may have moved and still count as the same spawn |
 | `--duplicate-radius` | `1` | Same-entry spawns closer than this count as stacked |
 | `--emit-sql` | off | Also write the import/fix SQL |
 | `--out` | `spawn_report` | Output folder |
+
+All unchanged old-world zones, with SQL:
+
+```sh
+python spawncompare.py --reference world434 --target world --skip-mop-changes --emit-sql
+```
 
 Only the missing Deadmines spawns (map 36), with SQL:
 
@@ -94,11 +102,26 @@ All reports are CSV files in the `--out` folder. They open fine in Excel or Libr
 Zones are taken from the reference's `zoneId` column. SkyFire spawns get the zone of the nearest
 reference spawn.
 
-### Expect noise in areas MoP changed
-The 5.x client changed some old-world areas, so differences there are often correct:
-Theramore/Dustwallow Marsh (5.1), the Scarlet Monastery and Scholomance exteriors, Durotar and
-the Northern Barrens (5.1 to 5.3 story), Brawler's Guild areas, Pandaren NPCs in the capital cities,
-and pet battle tamers and wild pets everywhere. Pandaria itself (map 870) isn't in the reference.
+### Areas MoP changed
+The 5.x client changed some old-world areas, and the 4.3.4 data there is outdated. `--skip-mop-changes`
+leaves these out of the reports and the SQL:
+
+| Left out | Why |
+|---|---|
+| Map 389 Ragefire Chasm | Rebuilt in 5.0 with new bosses; the 4.3.4 version is the old dungeon |
+| Maps 189, 289 (old Scarlet Monastery, old Scholomance) | Replaced by maps 1001/1004/1007 in 5.0 |
+| Zone 85 Tirisfal Glades | Scarlet Monastery exterior rebuilt |
+| Zone 28 Western Plaguelands | Scholomance / Caer Darrow rebuilt |
+| Zone 15 Dustwallow Marsh | Theramore destroyed (5.1) |
+| Zones 14 Durotar, 1637 Orgrimmar | Darkspear rebellion, Kor'kron takeover (5.1 to 5.3) |
+| Zone 17 Northern Barrens | Crossroads escalation (5.3) |
+
+Zone filtering needs the reference's `zoneId` column. TCPP fills it in, and the tool warns if most spawns
+have no zone.
+
+Elsewhere, expect some extra spawns that are correct for 5.4.8: Pandaren NPCs in the capital
+cities, pet battle tamers, and wild pets. They show up in `extra_*.csv` and are never touched by the
+generated SQL. Pandaria itself (map 870) isn't in the reference.
 
 ## 4. Applying the generated SQL
 

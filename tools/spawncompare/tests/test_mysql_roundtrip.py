@@ -70,7 +70,9 @@ INSERT INTO creature (guid,id,map,zoneId,spawnMask,position_x,position_y,positio
   (7,104,0,40,1,5200,5000,10,0,0,0),    -- missing, no template in target -> not imported
   (8,105,34,0,1,10,10,-30,0,0,0),       -- Stockade, matched (teaches mask 1 -> 2)
   (9,47162,36,0,3,-190,-400,55,1,0,0),  -- Deadmines, missing (mask guessed 3 -> 6)
-  (10,101,36,0,1,-100,-400,55,1,3,1);   -- Deadmines, missing
+  (10,101,36,0,1,-100,-400,55,1,3,1),   -- Deadmines, missing
+  (11,101,1,14,1,300,-4000,10,0,0,0),   -- Durotar, missing (MoP-changed zone)
+  (12,101,389,0,1,0,0,-20,0,0,0);       -- Ragefire Chasm, missing (MoP-changed map)
 INSERT INTO creature_addon VALUES (4, 400);
 INSERT INTO pool_members VALUES (0, 6, 1);
 INSERT INTO instance_template VALUES (34),(36);
@@ -137,8 +139,13 @@ class MySQLRoundTrip(unittest.TestCase):
                  self.conn_args["user"], "--maps", "all", "--out", out, *extra])
 
     def test_report_then_apply_sql(self):
+        skip = tempfile.mkdtemp()
+        self.run_tool(skip, "--skip-mop-changes")
+        missing = read_csv(os.path.join(skip, "missing_creature.csv"))
+        self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10])
+
         out = tempfile.mkdtemp()
-        self.run_tool(out, "--emit-sql")
+        self.run_tool(out, "--emit-sql", "--exclude-maps", "389", "--exclude-zones", "14")
 
         missing = read_csv(os.path.join(out, "missing_creature.csv"))
         self.assertEqual(sorted(int(r["ref_guid"]) for r in missing), [5, 6, 7, 9, 10])
@@ -175,7 +182,7 @@ class MySQLRoundTrip(unittest.TestCase):
             self.assertEqual((row[0], row[1], round(row[2], 2), row[3]), (13965, 6, 0.99, 7200))
 
         out2 = tempfile.mkdtemp()
-        self.run_tool(out2)
+        self.run_tool(out2, "--skip-mop-changes")
         remaining = sorted(int(r["ref_guid"]) for r in read_csv(os.path.join(out2, "missing_creature.csv")))
         self.assertEqual(remaining, [6, 7])
         issues = [r["issues"] for r in read_csv(os.path.join(out2, "diffs_creature.csv"))]

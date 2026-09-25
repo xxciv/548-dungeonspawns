@@ -20,3 +20,5 @@ Mogu'shan Vaults (1008), Heart of Fear (1009), Siege of Niuzao Temple (1011) and
   rebuilt the same day; the Deadmines never was.
 - No SkyFire world update since then has added spawns for any of the maps above, and the core has no
   boss scripts for them. Its Deadmines script is still the pre-Cataclysm version.
+- Ragefire Chasm, Scarlet Halls/Monastery, Scholomance and the MoP instances can't be filled from a
+  4.3.4 database: MoP rebuilt or added them. Use `spawncompare --skip-mop-changes` to keep them out.
