@@ -5,7 +5,9 @@ Core: <https://github.com/alexkulya/pandaria_5.4.8> (GPL-2.0, Mists of Pandaria 
 This guide builds the core, creates its databases and prepares client data on a fresh Debian 13
 (trixie) VM. The project documents Ubuntu 20.04/22.04 with GCC 9–11 and MySQL 8.0. Debian 13 ships
 GCC 14, CMake 3.31 and no MySQL 8.0, so a few steps differ from the upstream README. Every
-difference below was reproduced with the same compiler (GCC 14.2), Boost (1.83) and CMake behaviour.
+difference below was reproduced with the same compiler (GCC 14.2), Boost (1.83) and CMake behaviour:
+the patched source compiles, `authserver` starts and serves the realm list, and `worldserver`
+connects to the three databases and runs until it needs the extracted client data.
 
 ## 0. VM sizing
 
@@ -121,8 +123,10 @@ memory, use fewer jobs (`make -j2 install`). Afterwards `~/pandaria/server/bin` 
 ## 5. Databases
 
 `tools/pandaria/install_databases.sh` imports the base dumps and applies about 110 update files in
-the correct order. The project's own Docker import only applies `sql/updates` and silently skips
-the 2023–2026 world fixes that were moved to `sql/old`; this script applies them.
+the correct order. Don't skip them: the project's own Docker import only applies `sql/updates` and
+misses the 2023–2026 world updates that were moved to `sql/old`, including
+`2024_08_22_00_world_faction.sql`. Without it the current core refuses to start
+(`Unknown column 'faction'` / `Cannot connect to world database`).
 
 ```sh
 export MYSQL_PWD='your-mysql-root-password'   # sudo mysql users: see below
@@ -196,6 +200,9 @@ account set gmlevel myname 3 -1
 ```
 
 Open TCP ports 3724 (auth) and 8085 (world) if the VM has a firewall.
+
+If `worldserver` stops with `Correct *.map files not found`, `DataDir` doesn't point at the folder
+from step 6 (it must contain `dbc`, `maps`, `vmaps` and `mmaps`).
 
 ## 9. Client
 
