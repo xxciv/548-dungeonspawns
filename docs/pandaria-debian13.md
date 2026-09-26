@@ -15,8 +15,8 @@ difference below was reproduced with the same compiler (GCC 14.2), Boost (1.83) 
 | RAM | 8 GB | 16 GB |
 | Disk | 60 GB | 100 GB (source + build + client copy + extracted data) |
 
-The compile takes roughly 70 minutes with 8 threads (upstream's estimate). Generating movement maps
-(step 6) takes several hours.
+The full compile took 61 minutes on 4 cores in testing (upstream estimates about 70 minutes with 8
+threads on their setup). Generating movement maps (step 6) takes several hours.
 
 ## 1. Build tools and libraries
 
@@ -78,8 +78,18 @@ cd source
 git apply ../tools-repo/tools/pandaria/gcc14-build-fixes.patch
 ```
 
-The patch only adds missing `#include`s that older compilers and Boost versions pulled in
-implicitly. See [`gcc14-build-fixes.patch`](../tools/pandaria/gcc14-build-fixes.patch) for the list.
+GCC 14 rejects a few things older compilers let through. The patch fixes exactly those, in four files:
+
+| File | Fix |
+|---|---|
+| `src/server/shared/Define.h` | add `<climits>` for `PATH_MAX` |
+| `src/server/shared/Utilities/Util.cpp` | add `<arpa/inet.h>` for `inet_addr` |
+| `src/server/game/World/World.cpp` | initialise two `std::atomic` statics with braces (C++14 copy-init is ill-formed) |
+| `src/server/scripts/Events/hallows_end.cpp` | brace the `Position` in two Hallow's End tables |
+
+The Hallow's End fix is also a real bug fix: `Position` has a constructor, so without inner braces
+each row's coordinates spilled into the following rows, and the fire event read wrong positions.
+Older compilers only warned about it.
 
 ## 4. Configure and compile
 
@@ -91,12 +101,17 @@ cd ~/pandaria/source && mkdir -p build && cd build
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=$HOME/pandaria/server \
+  -DBUILD_DEPLOY=0 \
   -DSCRIPTS=1 -DTOOLS=1 -DNOJEM=1 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 \
   -DMYSQL_CONFIG= \
   -DMYSQL_INCLUDE_DIR=/usr/include/mysql \
   -DMYSQL_LIBRARY=/usr/lib/x86_64-linux-gnu/libmysqlclient.so
 make -j"$(nproc)" install
 ```
+
+`-DBUILD_DEPLOY=0` matters: the project turns that option on by default, which adds full debug
+information (`-g3`) and `-march=native`. With it on, the build directory grows to about 14 GB and
+the binaries only run on CPUs like the build machine's; the project's own Dockerfile turns it off too.
 
 Run the compile inside `tmux` so it survives a dropped SSH session. If the machine runs out of
 memory, use fewer jobs (`make -j2 install`). Afterwards `~/pandaria/server/bin` contains
