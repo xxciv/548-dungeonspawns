@@ -55,9 +55,10 @@ Oracle's APT repository on this VM, and do not install any MariaDB packages alon
    EOF
    sudo systemctl restart mysql
    ```
-4. A database user for the server:
+4. A database user for the server. Oracle's installer asks for a MySQL root password; log in
+   with it (`-p` prompts for it):
    ```sh
-   sudo mysql -e "CREATE USER 'pandaria'@'localhost' IDENTIFIED BY 'choose-a-password';
+   mysql -u root -p -e "CREATE USER 'pandaria'@'localhost' IDENTIFIED BY 'choose-a-password';
      GRANT ALL PRIVILEGES ON auth.* TO 'pandaria'@'localhost';
      GRANT ALL PRIVILEGES ON characters.* TO 'pandaria'@'localhost';
      GRANT ALL PRIVILEGES ON world.* TO 'pandaria'@'localhost';"
@@ -114,7 +115,8 @@ MYSQL_ARGS="-u root" ~/pandaria/tools-repo/tools/pandaria/install_databases.sh ~
 unset MYSQL_PWD
 ```
 
-If root has no password and logs in through `sudo mysql` (the default on a fresh install), run it as
+If you left the root password empty during installation, root logs in through `sudo mysql`
+instead; then use `sudo mysql` in step 2.4 and run the installer as
 `sudo MYSQL_ARGS="" ~/pandaria/tools-repo/tools/pandaria/install_databases.sh ~/pandaria/source`.
 
 Expected result: about 314,700 creatures and 170,100 gameobjects, and one known failure,
@@ -160,7 +162,7 @@ also set `DataDir = "/home/<you>/pandaria/server/data"`.
 The realm list ships with `127.0.0.1`. For clients on other machines, use the VM's LAN address:
 
 ```sh
-sudo mysql -e "UPDATE auth.realmlist SET address = '192.168.x.x' WHERE id = 1;"
+mysql -u root -p -e "UPDATE auth.realmlist SET address = '192.168.x.x' WHERE id = 1;"
 ```
 
 Start both servers (each in its own `tmux` window):
