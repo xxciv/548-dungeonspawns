@@ -75,7 +75,7 @@ against 8.4 here.
 ```sh
 mkdir -p ~/pandaria && cd ~/pandaria
 git clone https://github.com/alexkulya/pandaria_5.4.8.git source
-git clone https://github.com/xxciv/548-dungeonspawns.git tools-repo
+git clone https://github.com/xxciv/zrpandaria548.git tools-repo
 cd source
 git apply ../tools-repo/tools/pandaria/gcc14-build-fixes.patch
 ```
