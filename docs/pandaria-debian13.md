@@ -70,18 +70,18 @@ The project lists MySQL 5.7/8.0 as supported. It doesn't use any client function
 removed (only `my_bool`, which its compatibility header already handles), but it hasn't been tested
 against 8.4 here.
 
-## 3. Source and GCC 14 fixes
+## 3. Source and fixes
 
 ```sh
 mkdir -p ~/pandaria && cd ~/pandaria
 git clone https://github.com/alexkulya/pandaria_5.4.8.git source
 git clone https://github.com/xxciv/zrpandaria548.git tools-repo
 cd source
-git apply ../tools-repo/tools/pandaria/gcc14-build-fixes.patch
+git apply ../tools-repo/tools/pandaria/pandaria-fixes.patch
 ```
 
 GCC 14 rejects a few things older compilers let through, and one extractor bug only shows on Linux.
-The patch fixes exactly those, in five files:
+The patch fixes exactly those, plus a shutdown crash, in six files:
 
 | File | Fix |
 |---|---|
@@ -90,6 +90,7 @@ The patch fixes exactly those, in five files:
 | `src/server/game/World/World.cpp` | initialise two `std::atomic` statics with braces (C++14 copy-init is ill-formed) |
 | `src/server/scripts/Events/hallows_end.cpp` | brace the `Position` in two Hallow's End tables |
 | `src/tools/map_extractor/System.cpp` | don't keep the `\` path separator in extracted `.dbc`/`.db2` names |
+| `src/server/game/Scripting/ScriptMgr.cpp` | stop double-deleting unused scripts (segfault in `ScriptMgr::Unload()` on every shutdown) |
 
 The Hallow's End fix is also a real bug fix: `Position` has a constructor, so without inner braces
 each row's coordinates spilled into the following rows, and the fire event read wrong positions.

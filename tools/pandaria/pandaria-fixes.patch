@@ -1,3 +1,15 @@
+diff --git a/src/server/game/Scripting/ScriptMgr.cpp b/src/server/game/Scripting/ScriptMgr.cpp
+index acd73d6..34db867 100644
+--- a/src/server/game/Scripting/ScriptMgr.cpp
++++ b/src/server/game/Scripting/ScriptMgr.cpp
+@@ -123,7 +123,6 @@ class ScriptRegistry
+                             script->GetName().c_str());
+ 
+                     // These scripts don't get stored anywhere so throw them into this to avoid leaking memory
+-                    ExampleScripts.insert(script);
+ 
+                     UnusedScripts.push_back(script);
+                 }
 diff --git a/src/server/game/World/World.cpp b/src/server/game/World/World.cpp
 index 820bbf9..f86cba5 100644
 --- a/src/server/game/World/World.cpp
