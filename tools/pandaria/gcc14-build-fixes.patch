@@ -565,3 +565,25 @@ index 12bd2d0..214416a 100644
  // One generator per thread, which is what ACE_TSS<SFMTRand> provided. The
  // function wrapper rather than a namespace-scope thread_local keeps the first
  // caller on a thread paying for construction, instead of leaving it to the
+diff --git a/src/tools/map_extractor/System.cpp b/src/tools/map_extractor/System.cpp
+index a448f1e..491b8b2 100644
+--- a/src/tools/map_extractor/System.cpp
++++ b/src/tools/map_extractor/System.cpp
+@@ -1102,7 +1102,7 @@ void ExtractDBCFiles(int l, bool basicLocale)
+             }
+ 
+             filename = foundFile.cFileName;
+-            filename = outputPath + filename.substr(filename.rfind('\\'));
++            filename = outputPath + filename.substr(filename.rfind('\\') + 1);
+             if (ExtractFile(dbcFile, filename.c_str()))
+                 ++count;
+ 
+@@ -1145,7 +1145,7 @@ void ExtractDB2Files(int l, bool basicLocale)
+             }
+ 
+             filename = foundFile.cFileName;
+-            filename = outputPath + filename.substr(filename.rfind('\\'));
++            filename = outputPath + filename.substr(filename.rfind('\\') + 1);
+             if (ExtractFile(dbcFile, filename.c_str()))
+                 ++count;
+ 

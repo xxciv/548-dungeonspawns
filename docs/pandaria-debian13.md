@@ -80,7 +80,8 @@ cd source
 git apply ../tools-repo/tools/pandaria/gcc14-build-fixes.patch
 ```
 
-GCC 14 rejects a few things older compilers let through. The patch fixes exactly those, in four files:
+GCC 14 rejects a few things older compilers let through, and one extractor bug only shows on Linux.
+The patch fixes exactly those, in five files:
 
 | File | Fix |
 |---|---|
@@ -88,6 +89,7 @@ GCC 14 rejects a few things older compilers let through. The patch fixes exactly
 | `src/server/shared/Utilities/Util.cpp` | add `<arpa/inet.h>` for `inet_addr` |
 | `src/server/game/World/World.cpp` | initialise two `std::atomic` statics with braces (C++14 copy-init is ill-formed) |
 | `src/server/scripts/Events/hallows_end.cpp` | brace the `Position` in two Hallow's End tables |
+| `src/tools/map_extractor/System.cpp` | don't keep the `\` path separator in extracted `.dbc`/`.db2` names |
 
 The Hallow's End fix is also a real bug fix: `Position` has a constructor, so without inner braces
 each row's coordinates spilled into the following rows, and the fire event read wrong positions.
@@ -155,6 +157,16 @@ mkdir -p vmaps && ~/pandaria/server/bin/vmap4assembler Buildings vmaps
 mkdir -p mmaps && ~/pandaria/server/bin/mmaps_generator --threads "$(nproc)"   # several hours
 mkdir -p ~/pandaria/server/data
 mv dbc maps vmaps mmaps ~/pandaria/server/data/
+```
+
+Without the extractor fix, every file in `dbc/` is named with a leading backslash
+(`\AreaTable.dbc`) and `worldserver` stops with `ALL required *.dbc files (168) not found`. To
+repair files extracted with an unpatched `mapextractor`, rename them in place (and in any locale
+subfolder):
+
+```sh
+cd ~/pandaria/server/data/dbc
+for f in \\*; do mv -- "$f" "${f#\\}"; done
 ```
 
 The upstream README also links a prebuilt geodata archive on Google Drive; it was made from a
