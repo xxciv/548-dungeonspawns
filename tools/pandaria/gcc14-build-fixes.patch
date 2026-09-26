@@ -1,3 +1,19 @@
+diff --git a/src/server/game/World/World.cpp b/src/server/game/World/World.cpp
+index 820bbf9..f86cba5 100644
+--- a/src/server/game/World/World.cpp
++++ b/src/server/game/World/World.cpp
+@@ -96,9 +96,9 @@
+ 
+ void AFDRoyaleUpdateHook(uint32 diff);
+ 
+-std::atomic<bool> World::m_stopEvent = false;
++std::atomic<bool> World::m_stopEvent{false};
+ uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
+-std::atomic<uint32> World::m_worldLoopCounter = 0;
++std::atomic<uint32> World::m_worldLoopCounter{0};
+ 
+ float World::m_MaxVisibleDistanceOnContinents = DEFAULT_VISIBILITY_DISTANCE;
+ float World::m_MaxVisibleDistanceInInstances  = DEFAULT_VISIBILITY_INSTANCE;
 diff --git a/src/server/shared/Define.h b/src/server/shared/Define.h
 index 6ea8928..68545db 100644
 --- a/src/server/shared/Define.h
