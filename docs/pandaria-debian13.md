@@ -22,7 +22,7 @@ The compile takes roughly 70 minutes with 8 threads (upstream's estimate). Gener
 
 ```sh
 sudo apt update
-sudo apt install -y git cmake make g++ unzip tmux \
+sudo apt install -y git cmake make g++ unzip tmux gnupg wget \
   libssl-dev libbz2-dev libreadline-dev libncurses-dev zlib1g-dev \
   libboost-system-dev libboost-locale-dev libboost-filesystem-dev libboost-thread-dev \
   libboost-regex-dev libboost-serialization-dev libboost-date-time-dev
@@ -35,8 +35,8 @@ The core must be built against **MySQL's** client library; MariaDB's headers bre
 MariaDB, and Oracle publishes MySQL 8.4 LTS, not 8.0, for trixie. Install server and client from
 Oracle's APT repository on this VM, and do not install any MariaDB packages alongside it.
 
-1. Download the repository setup package (`mysql-apt-config_*_all.deb`, version 0.8.36 or newer)
-   from <https://dev.mysql.com/downloads/repo/apt/>.
+1. Download the repository setup package (it needs `gnupg`, installed in step 1) (`mysql-apt-config_*_all.deb`, version 0.8.36 or newer; 0.8.40
+   works) from <https://dev.mysql.com/downloads/repo/apt/>.
 2. Install it and select **mysql-8.4-lts** when asked:
    ```sh
    sudo dpkg -i mysql-apt-config_*_all.deb
