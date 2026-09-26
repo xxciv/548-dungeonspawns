@@ -1,0 +1,27 @@
+diff --git a/src/server/shared/Define.h b/src/server/shared/Define.h
+index 6ea8928..68545db 100644
+--- a/src/server/shared/Define.h
++++ b/src/server/shared/Define.h
+@@ -47,6 +47,7 @@
+ #    define DECLSPEC_DEPRECATED __declspec(deprecated)
+ #  endif //DECLSPEC_DEPRECATED
+ #else //PLATFORM != PLATFORM_WINDOWS
++#  include <climits>
+ #  define TRINITY_PATH_MAX PATH_MAX
+ #  define DECLSPEC_NORETURN
+ #  define DECLSPEC_DEPRECATED
+diff --git a/src/server/shared/Utilities/Util.cpp b/src/server/shared/Utilities/Util.cpp
+index 12bd2d0..214416a 100644
+--- a/src/server/shared/Utilities/Util.cpp
++++ b/src/server/shared/Utilities/Util.cpp
+@@ -21,6 +21,10 @@
+ #include "SFMT.h"
+ #include "Errors.h" // for ASSERT
+ 
++#if PLATFORM != PLATFORM_WINDOWS
++#include <arpa/inet.h>
++#endif
++
+ // One generator per thread, which is what ACE_TSS<SFMTRand> provided. The
+ // function wrapper rather than a namespace-scope thread_local keeps the first
+ // caller on a thread paying for construction, instead of leaving it to the

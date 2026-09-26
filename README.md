@@ -7,6 +7,10 @@ Tools and notes for fixing missing or broken spawns in a Project SkyFire 5.4.8 w
   Preservation Project). It reports missing spawns, double spawns and wander/patrol problems, and can
   generate SQL to import the missing spawns.
 
+- [`docs/pandaria-debian13.md`](docs/pandaria-debian13.md): building the
+  [pandaria_5.4.8](https://github.com/alexkulya/pandaria_5.4.8) core on Debian 13, with a database
+  installer (`tools/pandaria/install_databases.sh`) and the source fixes GCC 14 needs.
+
 ## Why some dungeons are empty
 
 Stock SkyFire ships these instances with no creature spawns: Deadmines (36), Ragefire Chasm (389),
