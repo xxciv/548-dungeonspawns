@@ -156,12 +156,17 @@ def build_rows(dbc, today):
             report.append(f"-- {hid} {name}: every year {start:%b %d %H:%M}"
                           + (f" (stage {stage}, holiday date {offset} earlier)" if stage > 1 else ""))
             continue
-        starts = event_start_dates(rule, today.year - 1, today.month)
+        if rule[0] == "first_sunday_monthly":   # from last month, so a running faire is covered
+            first_year, first_month = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+        else:
+            first_year, first_month = today.year - 1, today.month
+        starts = event_start_dates(rule, first_year, first_month)
         starts = [dt.datetime.combine(d, dt.time(hour, minute)) for d in starts][:MAX_HOLIDAY_DATES]
         for i, start in enumerate(starts):
             rows.append((hid, i, pack_time(start - offset)))
         upcoming = [s for s in starts if s.date() >= today][:3]
-        report.append(f"-- {hid} {name}: {len(starts)} dates {starts[0]:%Y-%m-%d} .. {starts[-1]:%Y-%m-%d}; "
+        report.append(f"-- {hid} {name}: {len(starts)} dates {starts[0]:%Y-%m-%d} .. {starts[-1]:%Y-%m-%d} "
+                      f"(re-run before {starts[-1]:%Y-%m}); "
                       f"next {', '.join(f'{s:%Y-%m-%d}' for s in upcoming)}"
                       + (f" (stage {stage}, holiday date {offset} earlier)" if stage > 1 else ""))
     return rows, report

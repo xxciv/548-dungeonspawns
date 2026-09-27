@@ -215,6 +215,18 @@ account set gmlevel myname 3 -1
 
 Open TCP ports 3724 (auth) and 8085 (world) if the VM has a firewall.
 
+**Daily restart.** `worldserver` restarts itself every day at 03:55 (`Enable.Auto.Restart.Server`
+is on by default; the time is `Auto.Restart.Server.Hour`/`Minute`). "Restart" means it exits, so
+start it from a loop that brings it back, still inside `tmux` so the console stays usable:
+
+```sh
+cd ~/pandaria/server/bin
+while true; do ./worldserver; echo "worldserver exited ($?), restarting in 10s (Ctrl-C to stop)"; sleep 10; done
+```
+
+To turn the daily restart off instead, add `Enable.Auto.Restart.Server = 0` to `worldserver.conf`.
+Keeping it on is useful: holiday dates (section 10) are only read at startup.
+
 The shipped `command` table comes from a live server with its own staff levels: most commands
 require level 4, 5 or 6, which no account can use (the core's highest account level is 3,
 administrator). As shipped, even `.gm on` and `.event` are out of reach. Cap them at 3 so
@@ -246,7 +258,10 @@ events actually run, not only the calendar.
 
 `tools/pandaria/holiday_dates.py` writes fresh dates: fixed-date holidays repeat every year,
 Easter / Lunar New Year / Thanksgiving based ones get 26 years of dates, and the Darkmoon Faire
-gets the first Sunday of each of the next 26 months (re-run it within two years).
+gets the first Sunday of each month for about two years. Re-run it before the date the script
+prints for the Darkmoon Faire (`re-run before YYYY-MM`); everything else lasts until 2050 or
+indefinitely. The server reads these dates at startup, which the daily restart (section 8) takes
+care of.
 
 ```sh
 cd ~/pandaria/tools-repo
