@@ -167,14 +167,37 @@ def build_rows(dbc, today):
     return rows, report
 
 
+def fmt_date(v):
+    year, month, day, hour, minute = unpack_time(v)
+    return f"{'every-year' if year is None else year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}"
+
+
+def dump(dbc):
+    for hid, (name, _rule, _time, stage) in sorted(HOLIDAYS.items()):
+        e = dbc.get(hid)
+        if e is None:
+            print(f"{hid} {name}: not in Holidays.dbc")
+            continue
+        durations = [d for d in e["durations"] if d]
+        dates = [fmt_date(v) for v in e["dates"] if v]
+        print(f"{hid} {name}: filter={e['filter']} looping={e['looping']} stage={stage} "
+              f"durations(h)={durations}")
+        print(f"    dates: {', '.join(dates) if dates else '(none)'}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("dbc", help="path to Holidays.dbc extracted from the 5.4.8 client")
     p.add_argument("--today", help="pretend today is YYYY-MM-DD (testing)")
+    p.add_argument("--dump", action="store_true",
+                   help="print what Holidays.dbc itself says about these holidays instead of SQL")
     args = p.parse_args(argv)
     today = dt.date.fromisoformat(args.today) if args.today else dt.date.today()
 
     dbc = read_holidays_dbc(args.dbc)
+    if args.dump:
+        dump(dbc)
+        return 0
     rows, report = build_rows(dbc, today)
     ids = sorted({r[0] for r in rows})
 
