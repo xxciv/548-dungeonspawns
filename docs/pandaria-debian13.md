@@ -223,3 +223,23 @@ Set `realmlist.wtf` in the client's `Data/enUS` (or your locale) folder to
 `set realmlist 192.168.x.x`. A 5.4.8 client needs a connection-patched `Wow.exe` to connect to a
 private server; the upstream README links one ("Client exe files"). It's an executable from a file
 share, so scan it before running it.
+
+## 10. Holiday dates (calendar and world events)
+
+The shipped `holiday_dates` stop around 2019 (the Darkmoon Faire in 2023). Past that, the core
+keeps the old start dates and repeats them every 360–362 days, so holidays drift weeks early,
+appear twice in the in-game calendar, and the Darkmoon Faire vanishes. This affects when the
+events actually run, not only the calendar.
+
+`tools/pandaria/holiday_dates.py` writes fresh dates: fixed-date holidays repeat every year,
+Easter / Lunar New Year / Thanksgiving based ones get 26 years of dates, and the Darkmoon Faire
+gets the first Sunday of each of the next 26 months (re-run it within two years).
+
+```sh
+cd ~/pandaria/tools-repo
+python3 tools/pandaria/holiday_dates.py ~/pandaria/server/data/dbc/Holidays.dbc > ~/holiday_dates.sql
+mysqldump -u root -p world holiday_dates > ~/holiday_dates_backup.sql
+mysql -u root -p world < ~/holiday_dates.sql
+```
+
+Restart `worldserver`, then log out and back in so the client requests a new calendar.
