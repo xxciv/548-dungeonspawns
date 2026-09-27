@@ -81,7 +81,7 @@ git apply ../tools-repo/tools/pandaria/pandaria-fixes.patch
 ```
 
 GCC 14 rejects a few things older compilers let through, and one extractor bug only shows on Linux.
-The patch fixes exactly those, plus a shutdown crash, in six files:
+The patch fixes exactly those, plus a shutdown crash and the holiday calendar, in seven files:
 
 | File | Fix |
 |---|---|
@@ -91,6 +91,7 @@ The patch fixes exactly those, plus a shutdown crash, in six files:
 | `src/server/scripts/Events/hallows_end.cpp` | brace the `Position` in two Hallow's End tables |
 | `src/tools/map_extractor/System.cpp` | don't keep the `\` path separator in extracted `.dbc`/`.db2` names |
 | `src/server/game/Scripting/ScriptMgr.cpp` | stop double-deleting unused scripts (segfault in `ScriptMgr::Unload()` on every shutdown) |
+| `src/server/game/Handlers/CalendarHandler.cpp` | send yearly holidays by calendar year, the Darkmoon Faire by its real dates, and nothing in 2031+ (the client reads year 31 as "every year", which drew a copy of each holiday 26 days early) |
 
 The Hallow's End fix is also a real bug fix: `Position` has a constructor, so without inner braces
 each row's coordinates spilled into the following rows, and the fire event read wrong positions.
@@ -255,3 +256,12 @@ mysql -u root -p world < ~/holiday_dates.sql
 ```
 
 Restart `worldserver`, then log out and back in so the client requests a new calendar.
+
+The calendar also needs the `CalendarHandler.cpp` fix from the patch in step 3. If your source tree
+already has the earlier fixes, apply just that file and rebuild (only one file recompiles):
+
+```sh
+cd ~/pandaria/source
+git apply ../tools-repo/tools/pandaria/calendar-fix.patch
+cd build && make -j"$(nproc)" install
+```

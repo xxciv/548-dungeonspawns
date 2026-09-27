@@ -1,3 +1,98 @@
+diff --git a/src/server/game/Handlers/CalendarHandler.cpp b/src/server/game/Handlers/CalendarHandler.cpp
+index 7104a87..56fc2db 100644
+--- a/src/server/game/Handlers/CalendarHandler.cpp
++++ b/src/server/game/Handlers/CalendarHandler.cpp
+@@ -35,6 +35,31 @@ Copied events should probably have a new owner
+ 
+ #define SEND_SERVERSIDE_HOLIDAYS
+ 
++#include <algorithm>
++#include <ctime>
++#include <vector>
++
++// Packed calendar times keep the year in 5 bits counted from 2000. The client reads 31 (2031) as
++// "every year" and anything later overflows, so such dates must never be sent.
++static bool IsPackableCalendarTime(time_t time)
++{
++    tm lt = tm();
++    Trinity::LocalTime(time, lt);
++    return lt.tm_year + 1900 < 2031;
++}
++
++static time_t HolidayDateToTime(uint32 date)
++{
++    tm t = tm();
++    t.tm_year = ((date >> 24) & 0x1F) + 100;
++    t.tm_mon = (date >> 20) & 0xF;
++    t.tm_mday = ((date >> 14) & 0x3F) + 1;
++    t.tm_hour = (date >> 6) & 0x1F;
++    t.tm_min = date & 0x3F;
++    t.tm_isdst = -1;
++    return mktime(&t);
++}
++
+ #include "InstanceSaveMgr.h"
+ #include "Log.h"
+ #include "Opcodes.h"
+@@ -109,7 +134,27 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recvData*/)
+ 
+         std::string holidayTexture = holiday->TextureFilename[LOCALE_enUS];
+ 
+-        std::function<void(uint32, ByteBuffer*)> appendDateIndex = [holiday, event, original](uint32 dateIndex, ByteBuffer* holidaysInfoBuffer)
++        // Holidays with defined dates only (Darkmoon Faire): send the dates themselves, shifted to the
++        // event's stage, instead of stepping by the event's occurence.
++        std::vector<time_t> definedDates;
++        if (holiday->CalendarFilterType == 1)
++        {
++            time_t stageOffset = 0;
++            for (uint8 i = 0; i + 1 < event.holidayStage && i < MAX_HOLIDAY_DURATIONS; ++i)
++                stageOffset += holiday->Duration[i] * HOUR;
++
++            for (uint8 i = 0; i < MAX_HOLIDAY_DATES && holiday->Date[i]; ++i)
++            {
++                if (((holiday->Date[i] >> 24) & 0x1F) == 31) // "every year" dates can't be ordered
++                    continue;
++                time_t date = HolidayDateToTime(holiday->Date[i]) + stageOffset;
++                if (date >= event.start)
++                    definedDates.push_back(date);
++            }
++            std::sort(definedDates.begin(), definedDates.end());
++        }
++
++        std::function<void(uint32, ByteBuffer*)> appendDateIndex = [holiday, event, original, definedDates](uint32 dateIndex, ByteBuffer* holidaysInfoBuffer)
+         {
+             if (dateIndex > 10) // we get broken packed time when index more than 10, idk why
+                 *holidaysInfoBuffer << uint32(0);
+@@ -122,7 +167,28 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recvData*/)
+             else if (original)
+                 *holidaysInfoBuffer << uint32(holiday->Date[dateIndex]);
+             else
+-                holidaysInfoBuffer->AppendPackedTime(event.start + event.occurence * MINUTE * dateIndex);
++            {
++                time_t date;
++                if (!definedDates.empty())
++                    date = dateIndex < definedDates.size() ? definedDates[dateIndex] : 0;
++                else if (holiday->CalendarFilterType == -1)
++                {
++                    // Yearly holidays: step by calendar years. Their occurence is YEAR (360 days),
++                    // which drifts five days a year.
++                    tm lt = tm();
++                    Trinity::LocalTime(event.start, lt);
++                    lt.tm_year += dateIndex;
++                    lt.tm_isdst = -1;
++                    date = mktime(&lt);
++                }
++                else
++                    date = event.start + event.occurence * MINUTE * dateIndex;
++
++                if (date && IsPackableCalendarTime(date))
++                    holidaysInfoBuffer->AppendPackedTime(date);
++                else
++                    *holidaysInfoBuffer << uint32(0);
++            }
+         };
+ 
+         data.WriteBits(holidayTexture.size(), 6);
 diff --git a/src/server/game/Scripting/ScriptMgr.cpp b/src/server/game/Scripting/ScriptMgr.cpp
 index acd73d6..34db867 100644
 --- a/src/server/game/Scripting/ScriptMgr.cpp
