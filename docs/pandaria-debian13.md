@@ -214,6 +214,18 @@ account set gmlevel myname 3 -1
 
 Open TCP ports 3724 (auth) and 8085 (world) if the VM has a firewall.
 
+The shipped `command` table comes from a live server with its own staff levels: most commands
+require level 4, 5 or 6, which no account can use (the core's highest account level is 3,
+administrator). As shipped, even `.gm on` and `.event` are out of reach. Cap them at 3 so
+administrators can use every command, then restart `worldserver`:
+
+```sh
+mysqldump -u root -p world command > ~/command_backup.sql
+mysql -u root -p -e "UPDATE world.command SET security = 3 WHERE security > 3;"
+```
+
+GM levels are read when the account logs in, so log out to the login screen after changing them.
+
 If `worldserver` stops with `Correct *.map files not found`, `DataDir` doesn't point at the folder
 from step 6 (it must contain `dbc`, `maps`, `vmaps` and `mmaps`).
 
