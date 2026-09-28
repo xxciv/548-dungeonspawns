@@ -19,7 +19,7 @@ Newest first. Each entry says what changed, which files it touches, and what you
   kill rewards), `ScriptLoader.cpp` (registers the script), `worldserver.conf.dist` (new `DungeonScale.*` settings).
 - Fix to the Solocraft patch: `SpellAuraEffects.cpp` called the DoT damage hook twice per tick, so
   `SoloCraft.DamageTaken.Pct` hit DoTs twice (30% became 9%). The duplicate call is removed.
-- To pick up: apply the patch after the Solocraft patch, rebuild (near-full rebuild, because `ScriptMgr.h` changed),
+- To pick up: apply the patch after the Solocraft patch, run `cmake .` in `build` (new source files), rebuild (near-full rebuild, because `ScriptMgr.h` changed),
   copy the `DUNGEON SCALE` block into `worldserver.conf`, set Solocraft's stat and damage settings to neutral
   (guide section 12), restart `worldserver`. The Helix SQL can stay: his damage works out about the same.
 

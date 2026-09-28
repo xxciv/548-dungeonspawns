@@ -343,10 +343,11 @@ from the 548DS repo. Apply it **after** the Solocraft patch from section 11:
 ```sh
 cd ~/pandaria/source
 git apply ../tools-repo/tools/pandaria/dungeon-scale.patch
-cd build && make -j"$(nproc)" install
+cd build && cmake . && make -j"$(nproc)" install
 ```
 
-This is a near-full rebuild, because the patch adds hooks to `ScriptMgr.h`.
+`cmake .` is needed because the patch adds new source files, and cmake only picks those up when it runs
+(it reuses your existing options). This is a near-full rebuild, because the patch adds hooks to `ScriptMgr.h`.
 
 What it does, with the defaults:
 
