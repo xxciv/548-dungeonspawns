@@ -12,7 +12,8 @@ See [`PATCHNOTES.md`](PATCHNOTES.md) for what changed and when.
   [pandaria_5.4.8](https://github.com/alexkulya/pandaria_5.4.8) core on Debian 13, with a database
   installer (`tools/pandaria/install_databases.sh`) and the source fixes GCC 14 needs.
   Section 11 covers an optional Solocraft patch for soloing dungeons with a normal health pool,
-  less incoming damage and less gold.
+  less incoming damage and less gold. Section 12 covers DungeonScale, which instead scales dungeon mobs to
+  the number of players inside, caps how hard one hit can land, and awards honor for dungeon kills.
 
 ## Why some dungeons are empty
 
