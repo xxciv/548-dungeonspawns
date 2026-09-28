@@ -8,7 +8,7 @@ Newest first. Each entry says what changed, which files it touches, and what you
 **Deadmines: Helix Gearbreaker melee** (`tools/pandaria/sql/2026_09_28_deadmines_helix_melee.sql`)
 - Normal-mode Helix (entry 47296) swings every 0.5 s with a 57.5× damage multiplier, which burns a solo
   character down. The SQL lowers the multiplier to 20 (about 35% of stock). Heroic is untouched.
-- To pick up: back up the row, run the SQL on the world DB, restart `worldserver` (or `.reload creature_template 47296`)
+- To pick up: back up the row, run the SQL on the world DB, restart `worldserver`
   and respawn him. The revert line is in the file.
 
 **Solocraft tuning for solo dungeon runs** (`tools/pandaria/solocraft-solo-tuning.patch`, guide section 11)
