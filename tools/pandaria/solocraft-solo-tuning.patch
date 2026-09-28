@@ -1,0 +1,261 @@
+diff --git a/src/server/game/Entities/Unit/Unit.cpp b/src/server/game/Entities/Unit/Unit.cpp
+index 76666b4..8422437 100644
+--- a/src/server/game/Entities/Unit/Unit.cpp
++++ b/src/server/game/Entities/Unit/Unit.cpp
+@@ -15917,6 +15917,7 @@ void Unit::Kill(Unit* victim, bool durabilityLoss, SpellInfo const* spellInfo)
+                 loot->FillLoot(creature, lootid, LootTemplates_Creature, looter, false, false, creature->GetMap()->GetDifficulty());
+ 
+             loot->generateMoneyLoot(creature->GetCreatureTemplate()->mingold, creature->GetCreatureTemplate()->maxgold);
++            sScriptMgr->OnCreatureLootMoney(player, creature, loot->gold);
+         }
+ 
+         player->RewardPlayerAndGroupAtKill(victim, false);
+diff --git a/src/server/game/Scripting/ScriptMgr.cpp b/src/server/game/Scripting/ScriptMgr.cpp
+index acd73d6..97eb11d 100644
+--- a/src/server/game/Scripting/ScriptMgr.cpp
++++ b/src/server/game/Scripting/ScriptMgr.cpp
+@@ -1184,6 +1184,11 @@ void ScriptMgr::OnPlayerKilledByCreature(Creature* killer, Player* killed)
+     FOREACH_SCRIPT(PlayerScript)->OnPlayerKilledByCreature(killer, killed);
+ }
+ 
++void ScriptMgr::OnCreatureLootMoney(Player* looter, Creature* creature, uint32& gold)
++{
++    FOREACH_SCRIPT(PlayerScript)->OnCreatureLootMoney(looter, creature, gold);
++}
++
+ void ScriptMgr::OnPlayerLevelChanged(Player* player, uint8 oldLevel)
+ {
+     FOREACH_SCRIPT(PlayerScript)->OnLevelChanged(player, oldLevel);
+diff --git a/src/server/game/Scripting/ScriptMgr.h b/src/server/game/Scripting/ScriptMgr.h
+index 967048e..dce534b 100644
+--- a/src/server/game/Scripting/ScriptMgr.h
++++ b/src/server/game/Scripting/ScriptMgr.h
+@@ -707,6 +707,9 @@ class PlayerScript : public UnitScript
+         // Called when a player is killed by a creature
+         virtual void OnPlayerKilledByCreature(Creature* /*killer*/, Player* /*killed*/) { }
+ 
++        // Called after a killed creature's money loot is generated (looter is the player the loot belongs to)
++        virtual void OnCreatureLootMoney(Player* /*looter*/, Creature* /*creature*/, uint32& /*gold*/) { }
++
+         // Called when a player's level changes (after the level is applied)
+         virtual void OnLevelChanged(Player* /*player*/, uint8 /*oldLevel*/) { }
+ 
+@@ -1137,6 +1140,7 @@ class ScriptMgr
+         void OnPVPKill(Player* killer, Player* killed);
+         void OnCreatureKill(Player* killer, Creature* killed);
+         void OnPlayerKilledByCreature(Creature* killer, Player* killed);
++        void OnCreatureLootMoney(Player* looter, Creature* creature, uint32& gold);
+         void OnPlayerLevelChanged(Player* player, uint8 oldLevel);
+         void OnPlayerEquipChanged(Player* player, uint32 item);
+         void OnPlayerFreeTalentPointsChanged(Player* player, uint32 newPoints);
+diff --git a/src/server/game/Spells/Auras/SpellAuraEffects.cpp b/src/server/game/Spells/Auras/SpellAuraEffects.cpp
+index 06706c4..3486bd0 100644
+--- a/src/server/game/Spells/Auras/SpellAuraEffects.cpp
++++ b/src/server/game/Spells/Auras/SpellAuraEffects.cpp
+@@ -6385,6 +6385,9 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
+     if (!(GetSpellInfo()->AttributesCu & SPELL_ATTR0_CU_IGNORE_RESILIENCE))
+         caster->ApplyResilience(target, &amount);
+ 
++    // Script hook: let scripts change the tick after mitigation, before absorbs
++    sScriptMgr->ModifyPeriodicDamageAurasTick(target, caster, amount);
++
+     // Set trigger flag
+     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
+     uint32 procVictim = PROC_FLAG_TAKEN_PERIODIC;
+@@ -6482,6 +6485,9 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
+     if (!(GetSpellInfo()->AttributesCu & SPELL_ATTR0_CU_IGNORE_RESILIENCE))
+         caster->ApplyResilience(target, &amount);
+ 
++    // Script hook: let scripts change the tick after mitigation, before absorbs
++    sScriptMgr->ModifyPeriodicDamageAurasTick(target, caster, amount);
++
+     // Set trigger flag
+     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
+     uint32 procVictim = PROC_FLAG_TAKEN_PERIODIC;
+diff --git a/src/server/scripts/Custom/solocraft_system.cpp b/src/server/scripts/Custom/solocraft_system.cpp
+index a76b28a..0db87c0 100644
+--- a/src/server/scripts/Custom/solocraft_system.cpp
++++ b/src/server/scripts/Custom/solocraft_system.cpp
+@@ -29,6 +29,7 @@
+ #include "Chat.h"
+ #include "Log.h"
+ #include <math.h>
++#include <algorithm>
+ #include <unordered_map>
+ 
+ enum SolocraftTrinityStrings 
+@@ -63,6 +64,9 @@ class SolocraftConfig
+             SoloCraftDebuffEnable = sConfigMgr->GetBoolDefault("SoloCraft.Debuff.Enable", 1);
+             SoloCraftSpellMult = sConfigMgr->GetFloatDefault("SoloCraft.Spellpower.Mult", 2.5);
+             SoloCraftStatsMult = sConfigMgr->GetFloatDefault("SoloCraft.Stats.Mult", 100.0);
++            SoloCraftStatsStamina = sConfigMgr->GetBoolDefault("SoloCraft.Stats.Stamina", 1);
++            SoloCraftDamageTakenPct = std::max(0.0f, sConfigMgr->GetFloatDefault("SoloCraft.DamageTaken.Pct", 100.0f));
++            SoloCraftMoneyPct = std::max(0.0f, sConfigMgr->GetFloatDefault("SoloCraft.Money.Pct", 100.0f));
+ 
+             classes =
+             {
+@@ -403,6 +407,9 @@ class SolocraftConfig
+         float SoloCraftSpellMult = 1.0;
+         float SoloCraftStatsMult = 100.0;
+         float SoloCraftXPMod = 1.0; 
++        bool SoloCraftStatsStamina = true;
++        float SoloCraftDamageTakenPct = 100.0f;
++        float SoloCraftMoneyPct = 100.0f;
+ 
+         uint32 SolocraftLevelDiff = 1;
+         uint32 SolocraftDungeonLevel = 1;   
+@@ -604,6 +611,9 @@ protected:
+ 
+                 for (int32 i = STAT_STRENGTH; i < MAX_STATS; ++i)
+                 {
++                    if (i == STAT_STAMINA && !solocraftConfig.SoloCraftStatsStamina)
++                        continue;
++
+                     if (result)
+                     {
+                         player->HandleStatModifier(UnitMods(UNIT_MOD_STAT_START + i), TOTAL_VALUE, (*result)[1].GetFloat() * (*result)[4].GetFloat(), false);
+@@ -709,6 +719,9 @@ protected:
+ 
+             for (int32 i = STAT_STRENGTH; i < MAX_STATS; ++i)
+             {
++                if (i == STAT_STAMINA && !solocraftConfig.SoloCraftStatsStamina)
++                    continue;
++
+                 player->HandleStatModifier(UnitMods(UNIT_MOD_STAT_START + i), TOTAL_VALUE, difficulty * StatsMultPct, false);
+             }
+ 
+@@ -727,8 +740,105 @@ protected:
+     }
+ };
+ 
++// Share (0..1) of the full value for a player in a Solocraft instance: soloPct with 1 player,
++// rising in a straight line to 100% with a full group. 1.0 outside instances or above the level cap.
++static float GetSolocraftGroupScale(SolocraftConfig const& config, Player* player, float soloPct)
++{
++    if (!config.SoloCraftEnable || soloPct >= 100.0f || !player)
++        return 1.0f;
++
++    Map* map = player->GetMap();
++    InstanceMap const* instance = map ? map->ToInstanceMap() : nullptr;
++    if (!instance)
++        return 1.0f;
++
++    auto itr = config.dungeons.find(map->GetId());
++    uint32 dunLevel = itr != config.dungeons.end() ? itr->second : config.SolocraftDungeonLevel;
++    if (player->GetLevel() > dunLevel + config.SolocraftLevelDiff)
++        return 1.0f;
++
++    uint32 maxPlayers = std::max(instance->GetMaxPlayers(), 1u);
++    uint32 players = 1;
++    if (Group* group = player->GetGroup())
++        players = std::max<uint32>(group->GetMembersCount(), 1u);
++    players = std::min(players, maxPlayers);
++
++    float solo = soloPct / 100.0f;
++    if (maxPlayers == 1)
++        return solo;
++
++    return solo + (1.0f - solo) * float(players - 1) / float(maxPlayers - 1);
++}
++
++// Scales damage NPCs deal to players (and their pets) inside Solocraft instances.
++class solocraft_system_damage_handler : public UnitScript
++{
++public:
++    solocraft_system_damage_handler() : UnitScript("solocraft_system_damage_handler")
++    {
++        solocraftConfig = SolocraftConfig::getInstance();
++    }
++
++    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
++    {
++        damage = uint32(damage * GetDamageTakenScale(target, attacker));
++    }
++
++    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage) override
++    {
++        if (damage > 0)
++            damage = int32(damage * GetDamageTakenScale(target, attacker));
++    }
++
++    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, int32& damage) override
++    {
++        if (damage > 0)
++            damage = int32(damage * GetDamageTakenScale(target, attacker));
++    }
++
++private:
++    SolocraftConfig solocraftConfig;
++
++    float GetDamageTakenScale(Unit* target, Unit* attacker)
++    {
++        if (solocraftConfig.SoloCraftDamageTakenPct >= 100.0f || !target || !attacker || target == attacker)
++            return 1.0f;
++
++        // Only NPC damage: skip players, and pets, totems or charmed units controlled by players
++        if (attacker->GetTypeId() != TYPEID_UNIT || attacker->IsCharmedOwnedByPlayerOrPlayer())
++            return 1.0f;
++
++        Player* player = target->GetCharmerOrOwnerPlayerOrPlayerItself();
++        if (!player || player->GetMap() != target->GetMap())
++            return 1.0f;
++
++        return GetSolocraftGroupScale(solocraftConfig, player, solocraftConfig.SoloCraftDamageTakenPct);
++    }
++};
++
++// Scales the gold dropped by creatures killed inside Solocraft instances.
++class solocraft_system_money_handler : public PlayerScript
++{
++public:
++    solocraft_system_money_handler() : PlayerScript("solocraft_system_money_handler")
++    {
++        solocraftConfig = SolocraftConfig::getInstance();
++    }
++
++    void OnCreatureLootMoney(Player* looter, Creature* /*creature*/, uint32& gold) override
++    {
++        if (gold)
++            gold = uint32(gold * GetSolocraftGroupScale(solocraftConfig, looter, solocraftConfig.SoloCraftMoneyPct));
++    }
++
++private:
++    SolocraftConfig solocraftConfig;
++};
++
+ void AddSC_solocraft_system()
+ {
+     new solocraft_system_announce();
+     new solocraft_system_player_instance_handler();
++    new solocraft_system_damage_handler();
++    new solocraft_system_money_handler();
+ }
+diff --git a/src/server/worldserver/worldserver.conf.dist b/src/server/worldserver/worldserver.conf.dist
+index 6f252f6..5bbb6e8 100644
+--- a/src/server/worldserver/worldserver.conf.dist
++++ b/src/server/worldserver/worldserver.conf.dist
+@@ -4119,6 +4119,24 @@ SoloCraft.Spellpower.Mult = 4.0
+ SoloCraft.Attackpower.Mult = 2.0
+ SoloCraft.Stats.Mult = 6000.0
+ 
++#    SoloCraft.Stats.Stamina
++#        Description: Include Stamina in the Solocraft stat bonus. 0 keeps the player's health pool normal.
++#        Default:     1 - (Stamina is buffed too)
++#
++#    SoloCraft.DamageTaken.Pct
++#        Description: Percent of normal damage that NPCs deal to a solo player (and their pets) inside
++#                     Solocraft instances. Rises in a straight line to 100 with a full group.
++#        Default:     100 - (Blizzlike damage)
++#
++#    SoloCraft.Money.Pct
++#        Description: Percent of normal gold that creatures drop inside Solocraft instances for a solo
++#                     player. Rises in a straight line to 100 with a full group.
++#        Default:     100 - (Blizzlike gold)
++
++SoloCraft.Stats.Stamina = 1
++SoloCraft.DamageTaken.Pct = 100
++SoloCraft.Money.Pct = 100
++
+ SoloCraft.Death.Knight = 100
+ SoloCraft.Druid = 100
+ SoloCraft.Hunter = 100

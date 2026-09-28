@@ -10,6 +10,8 @@ Tools and notes for fixing missing or broken spawns in a Project SkyFire 5.4.8 w
 - [`docs/pandaria-debian13.md`](docs/pandaria-debian13.md): building the
   [pandaria_5.4.8](https://github.com/alexkulya/pandaria_5.4.8) core on Debian 13, with a database
   installer (`tools/pandaria/install_databases.sh`) and the source fixes GCC 14 needs.
+  Section 11 covers an optional Solocraft patch for soloing dungeons with a normal health pool,
+  less incoming damage and less gold.
 
 ## Why some dungeons are empty
 
