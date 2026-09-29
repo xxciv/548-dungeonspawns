@@ -9,9 +9,10 @@ Newest first. Each entry says what changed, which files it touches, and what you
 - Scaled dungeon mobs dropped no loot, gold or honor. The core only rewards a kill once players have dealt
   half the mob's health, and that amount was set from the mob's unscaled health, so a mob shrunk to 30% could
   never meet it. `DungeonScale.cpp` now resets that requirement whenever it scales a mob's health.
-- To pick up, in `~/pandaria/source`: `git apply -R ../tools-repo/tools/pandaria/dungeon-scale.patch` **before**
-  pulling the tools repo (this takes the old version back out), then pull, apply the patch again, rebuild
-  (only the DungeonScale file recompiles, so it's quick), and restart `worldserver`.
+- To pick up on a source tree that already has the earlier version: add the line with
+  `sed -i 's|^\(\s*\)creature->SetHealth(std::max(1u, std::min(health, maxHealth)));|&\n\1creature->ResetPlayerDamageReq();|' src/server/scripts/Custom/DungeonScale/DungeonScale.cpp`,
+  then `make install` in `build` (only that file recompiles) and restart `worldserver`. Re-applying the whole
+  patch also works but rewrites `ScriptMgr.h`, which forces a near-full rebuild.
 
 ## 2026-09-28
 
