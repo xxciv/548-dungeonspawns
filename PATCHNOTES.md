@@ -14,6 +14,14 @@ Newest first. Each entry says what changed, which files it touches, and what you
   then `make install` in `build` (only that file recompiles) and restart `worldserver`. Re-applying the whole
   patch also works but rewrites `ScriptMgr.h`, which forces a near-full rebuild.
 
+**DungeonScale playtest** (live server, solo, Deadmines up to and including the first boss)
+- Checked and working: scaled trash and first boss, loot and gold from kills, rogue pickpocketing,
+  no kill XP (`Rate.XP.Kill = 0`). The first boss's difficulty felt right at the default multipliers.
+- Solocraft is now neutral (`SoloCraft.Stats.Mult = 0`, `SoloCraft.Spellpower.Mult = 0`,
+  `SoloCraft.DamageTaken.Pct = 100`) and only applies its gold penalty (`SoloCraft.Money.Pct`).
+- Still to test: the rest of the dungeon (end boss, the 35% hit cap on big hits), a MoP dungeon, and a
+  second player joining mid-run.
+
 ## 2026-09-28
 
 **DungeonScale: dungeon mobs scale to the group** (`tools/pandaria/dungeon-scale.patch`, guide section 12)
