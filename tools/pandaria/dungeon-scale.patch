@@ -171,10 +171,10 @@ index 3486bd0..4020b0b 100644
      uint32 procVictim = PROC_FLAG_TAKEN_PERIODIC;
 diff --git a/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
 new file mode 100644
-index 0000000..0cb5abb
+index 0000000..92a9899
 --- /dev/null
 +++ b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
-@@ -0,0 +1,667 @@
+@@ -0,0 +1,671 @@
 +/*
 +* DungeonScale: scaling rules, config loading, hit cap and honor rewards.
 +*/
@@ -604,6 +604,10 @@ index 0000000..0cb5abb
 +            uint32 const maxHealth = creature->GetMaxHealth();
 +            uint32 const health = uint32(std::ceil(float(maxHealth) * pct / 100.0f));
 +            creature->SetHealth(std::max(1u, std::min(health, maxHealth)));
++
++            // Loot, gold and kill rewards need players to deal half the creature's health. That requirement was
++            // set from the unscaled health, which a scaled-down creature can never lose, so reset it to match.
++            creature->ResetPlayerDamageReq();
 +        }
 +    }
 +

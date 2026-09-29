@@ -3,6 +3,16 @@
 Newest first. Each entry says what changed, which files it touches, and what you need to do to pick it up
 (rebuild, restart, re-run SQL, edit config).
 
+## 2026-09-29
+
+**DungeonScale: loot fix** (`tools/pandaria/dungeon-scale.patch`)
+- Scaled dungeon mobs dropped no loot, gold or honor. The core only rewards a kill once players have dealt
+  half the mob's health, and that amount was set from the mob's unscaled health, so a mob shrunk to 30% could
+  never meet it. `DungeonScale.cpp` now resets that requirement whenever it scales a mob's health.
+- To pick up, in `~/pandaria/source`: `git apply -R ../tools-repo/tools/pandaria/dungeon-scale.patch` **before**
+  pulling the tools repo (this takes the old version back out), then pull, apply the patch again, rebuild
+  (only the DungeonScale file recompiles, so it's quick), and restart `worldserver`.
+
 ## 2026-09-28
 
 **DungeonScale: dungeon mobs scale to the group** (`tools/pandaria/dungeon-scale.patch`, guide section 12)
