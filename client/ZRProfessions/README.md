@@ -2,6 +2,8 @@
 
 Lets characters learn up to 4 primary professions on a 5.4.8 client, and lists all of them with `/profs`.
 
+Status: confirmed working in game on 2026-10-01 (a character with Leatherworking and Skinning trained a 3rd profession).
+
 ## Why an addon is needed
 
 The server already supports more than 2: `MaxPrimaryTradeSkill` in `worldserver.conf` sets how many

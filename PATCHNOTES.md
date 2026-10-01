@@ -17,6 +17,8 @@ Newest first. Each entry says what changed, which files it touches, and what you
 - `README.md` (addon): why, install steps, limits. Root `README.md` links to it.
 - To pick up: no rebuild, no SQL, no restart. Check `MaxPrimaryTradeSkill = 4` in `worldserver.conf`, then
   copy `client/ZRProfessions` into each player's `Interface/AddOns/`.
+- Confirmed in game the same day: a character with Leatherworking and Skinning could train a 3rd primary
+  profession, and the addon worked as described. Merged into `main`.
 
 **Solocraft settings to use alongside DungeonScale** (guide section 12, config only)
 - Recommended values: `SoloCraft.Stats.Mult = 0`, `SoloCraft.Spellpower.Mult = 0`,
