@@ -1,0 +1,13 @@
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index fce6089..0cde920 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -10203,7 +10203,7 @@ void Player::SendLoot(uint64 guid, LootType lootType, bool isAoE)
+                 loot->clear();
+ 
+                 if (uint32 lootid = creature->GetCreatureTemplate()->pickpocketLootId)
+-                    loot->FillLoot(creature, lootid, LootTemplates_Pickpocketing, this, true);
++                    loot->FillLoot(creature, lootid, LootTemplates_Pickpocketing, this, true, false, creature->GetMap()->GetDifficulty());
+ 
+                 // Generate extra money for pick pocket loot
+                 const uint32 a = urand(0, creature->GetLevel()/2);
