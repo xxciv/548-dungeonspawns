@@ -5,7 +5,7 @@ Newest first. Each entry says what changed, which files it touches, and what you
 
 ## 2026-10-01
 
-**Proposed, not applied: level-appropriate pickpocket loot in revamped dungeons**
+**Level-appropriate pickpocket loot in revamped dungeons** (guide section 13)
 (`tools/pandaria/pickpocket-difficulty.patch`, `tools/pandaria/sql/2026_10_01_normal_dungeon_pickpocket_loot.sql`
 + `_revert.sql`, all new)
 - Found: Deadmines, Shadowfang Keep, Scarlet Halls, Scarlet Monastery and Scholomance use one creature entry
@@ -22,6 +22,7 @@ Newest first. Each entry says what changed, which files it touches, and what you
   `SoloCraft.Money.Pct` handles it.
 - To pick up: apply the patch and rebuild, back up the two tables, run the SQL, restart `worldserver`.
   The revert file restores every original row.
+- Applied to the live server and confirmed in game the same day. Merged into `main`.
 
 **ZRProfessions client addon: up to 4 primary professions** (`client/ZRProfessions/`, new)
 - Why: `MaxPrimaryTradeSkill = 4` already works on the server, but the 5.4.8 client's trainer window

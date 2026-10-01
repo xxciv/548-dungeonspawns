@@ -15,6 +15,8 @@ See [`PATCHNOTES.md`](PATCHNOTES.md) for what changed and when.
   less incoming damage and less gold. Section 12 covers DungeonScale, which instead scales dungeon mobs to
   the number of players inside, caps how hard one hit can land, and awards honor for dungeon kills.
   Its design spec (rules, numbers, phases, decisions) is in [`docs/dungeon-scale-spec.md`](docs/dungeon-scale-spec.md).
+  Section 13 fixes pickpocketing in the revamped dungeons (Deadmines, Shadowfang Keep, Scarlet, Scholomance),
+  which gave heroic level 80-90 loot and junkboxes in normal mode.
 
 - [`client/ZRProfessions`](client/ZRProfessions/README.md): a client addon that lets trainers teach up to 4
   primary professions (the 5.4.8 client UI stops at 2 even when the server allows more) and lists them all
