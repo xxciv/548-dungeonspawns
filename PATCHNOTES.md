@@ -5,6 +5,25 @@ Newest first. Each entry says what changed, which files it touches, and what you
 
 ## 2026-10-01
 
+**Level-appropriate pickpocket loot in revamped dungeons** (guide section 13)
+(`tools/pandaria/pickpocket-difficulty.patch`, `tools/pandaria/sql/2026_10_01_normal_dungeon_pickpocket_loot.sql`
++ `_revert.sql`, all new)
+- Found: Deadmines, Shadowfang Keep, Scarlet Halls, Scarlet Monastery and Scholomance use one creature entry
+  for normal and heroic. Their pickpocket tables were captured in heroic and drop in every difficulty, so a
+  level 14 Kobold Digger gives Rogue's Draught (req. 80) and Flame-Scarred Junkbox (Lockpicking 400). The
+  stock core also rolls pickpocket loot without the dungeon difficulty.
+- Patch: one line in `Player.cpp` (`Player::SendLoot`) passes the map difficulty to the pickpocket loot
+  roll, the same way corpse loot already does. Rows tagged '' (all of the open world) behave as before.
+  Recompiles `Player.cpp` and relinks; not a near-full rebuild.
+- SQL: re-tags 117 heroic-level pickpocket rows as heroic-only, adds a level-appropriate junkbox for normal
+  mode on 27 creatures (Battered for Deadmines/Shadowfang, Worn for the Scarlet dungeons, Sturdy for
+  Scholomance), and re-tags 78 heroic-level corpse-loot rows (e.g. Fungus Squeezings in Shadowfang).
+- Gold was also found to be heroic-level in these dungeons (Kobold Digger 76s 84c); left as is by choice,
+  `SoloCraft.Money.Pct` handles it.
+- To pick up: apply the patch and rebuild, back up the two tables, run the SQL, restart `worldserver`.
+  The revert file restores every original row.
+- Applied to the live server and confirmed in game the same day. Merged into `main`.
+
 **ZRProfessions client addon: up to 4 primary professions** (`client/ZRProfessions/`, new)
 - Why: `MaxPrimaryTradeSkill = 4` already works on the server, but the 5.4.8 client's trainer window
   (`Blizzard_TrainerUI.lua`) greys out **Train** for a new profession once the Professions tab's 2nd slot is

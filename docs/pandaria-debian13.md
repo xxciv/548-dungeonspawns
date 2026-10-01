@@ -389,3 +389,35 @@ GM commands (GM level 1 and up):
 Per-dungeon tuning goes in `DungeonScale.Map.<mapId>.*` keys (e.g. `DungeonScale.Map.36.Damage = 0.25`
 for Deadmines), and `DungeonScale.RankOverride` fixes a mob the database ranks wrong. The combat log
 shows a capped hit's original number; your health bar shows the capped one.
+
+## 13. Level-appropriate pickpocket loot in revamped dungeons
+
+Deadmines, Shadowfang Keep, Scarlet Halls, Scarlet Monastery and Scholomance use one creature entry for
+normal and heroic; `creature_difficulty` only swaps level and stats. Their pickpocket tables were recorded
+in heroic and drop in every difficulty, so a level 14 Kobold Digger gives a Rogue's Draught (requires
+level 80) and a Flame-Scarred Junkbox (Lockpicking 400). The stock core also rolls pickpocket loot without
+the dungeon difficulty, so loot rows tagged per difficulty would never drop.
+
+Two parts, both needed:
+
+```sh
+cd ~/pandaria/source
+git apply ../tools-repo/tools/pandaria/pickpocket-difficulty.patch
+cd build && make -j"$(nproc)" install
+
+mysqldump -u root -p world pickpocketing_loot_template creature_loot_template > ~/pickpocket_backup.sql
+mysql -u root -p world < ~/pandaria/tools-repo/tools/pandaria/sql/2026_10_01_normal_dungeon_pickpocket_loot.sql
+```
+
+Then restart `worldserver`.
+
+- The patch changes one line in `Player::SendLoot` (`Player.cpp`): pickpocketing passes the map difficulty
+  to the loot roll, like corpse loot already does. Rows tagged `''`, which is every stock pickpocket row,
+  drop exactly as before. Only `Player.cpp` recompiles.
+- The SQL tags level 80-90 pickpocket items (junkboxes, Rogue's Draught, level 85 food, pricey grey junk) as
+  heroic-only, and gives 27 mobs a normal-mode junkbox instead: Battered (22%) in Deadmines and Shadowfang
+  Keep, Worn (18%) in the Scarlet dungeons, Sturdy (12%) in Scholomance. It also tags 78 level 80+ corpse
+  drops in these dungeons (e.g. Fungus Squeezings) as heroic-only.
+- `2026_10_01_normal_dungeon_pickpocket_loot_revert.sql` restores every original row.
+- Gold in these dungeons is heroic-level too (a Kobold Digger drops 76s 84c). It is left as is; use
+  `SoloCraft.Money.Pct` (section 11) to cut it.
