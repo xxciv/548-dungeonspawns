@@ -280,3 +280,56 @@ cd ~/pandaria/source
 git apply ../tools-repo/tools/pandaria/calendar-fix.patch
 cd build && make -j"$(nproc)" install
 ```
+
+## 11. Solocraft for solo dungeon runs (optional)
+
+The core ships Solocraft (`src/server/scripts/Custom/solocraft_system.cpp`), switched on in
+`worldserver.conf.dist`. When you enter a dungeon or raid, it adds a flat bonus to all five of
+your stats. It has no setting for mob damage or gold, and the bonus includes Stamina, so your
+health pool balloons and you spend ages eating between pulls.
+
+What the stock settings do:
+
+| Setting | Effect |
+|---|---|
+| `Solocraft.Dungeon`, `.Heroic`, `.Raid25`, `.Raid40` | Default difficulty offset per instance type. |
+| `Solocraft.<Dungeon>` / `Solocraft.<Dungeon>H` | Per-dungeon offset for normal / heroic, e.g. `Solocraft.DeadMines`, `Solocraft.DeadMinesH`. |
+| `SoloCraft.Stats.Mult` | Stat bonus = offset × this, added to Str, Agi, Sta, Int and Spi. |
+| `SoloCraft.Spellpower.Mult` | Mana users also get level × this × offset spell power. |
+| `SoloCraft.Attackpower.Mult` | Not read by the code; does nothing. |
+| `SoloCraft.<Class>` (0–100) | Only used when you join a group whose members already carry the full buff: it sizes your reduced share. Does nothing solo; values over 100 count as 100. |
+| `Solocraft.<Dungeon>.Level`, `Solocraft.Max.Level.Diff` | No buff once your level is above dungeon level + diff. |
+
+`tools/pandaria/solocraft-solo-tuning.patch` adds three settings and the two core hooks they need
+(a DoT/leech tick hook call and a creature gold hook):
+
+| Setting | Default | Effect |
+|---|---|---|
+| `SoloCraft.Stats.Stamina` | `1` | `0` leaves Stamina out of the stat bonus, so your health stays normal. |
+| `SoloCraft.DamageTaken.Pct` | `100` | Percent of normal damage NPCs deal to you and your pets (melee, spells, DoTs) inside Solocraft instances. |
+| `SoloCraft.Money.Pct` | `100` | Percent of normal gold creatures drop inside Solocraft instances. Quest, vendor and open-world gold are untouched. |
+
+Both percentages apply in full to a solo player and rise in a straight line to 100 with a full
+group (5 for a dungeon, 10 or 25 for a raid). They follow the same level cap as the stat buff. The
+defaults change nothing, so applying the patch alone keeps stock behaviour.
+
+```sh
+cd ~/pandaria/source
+git apply ../tools-repo/tools/pandaria/solocraft-solo-tuning.patch
+cd build && make -j"$(nproc)" install
+```
+
+Then add the settings to your `worldserver.conf` (the patched `.dist` has them with comments), e.g.:
+
+```ini
+# +50 Str/Agi/Int/Spi in normal Deadmines, no extra Stamina
+SoloCraft.Stats.Mult = 1
+Solocraft.DeadMines = 50.0
+SoloCraft.Stats.Stamina = 0
+# a solo player takes 30% damage and gets 30% gold
+SoloCraft.DamageTaken.Pct = 30
+SoloCraft.Money.Pct = 30
+```
+
+Solocraft reads its settings only when `worldserver` starts, so `.reload config` doesn't change
+them: restart the server, then leave and re-enter the instance.
