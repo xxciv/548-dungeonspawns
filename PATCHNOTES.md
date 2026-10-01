@@ -16,6 +16,13 @@ Newest first. Each entry says what changed, which files it touches, and what you
   ```
   then `make install` in `build` and restart `worldserver`.
 
+**DungeonScale signed off** (several solo Deadmines runs)
+- Confirmed in game: honor per kill (1 trash, 5 elite), loot and gold, pickpocketing, no kill XP, and
+  difficulty that feels right through the dungeon. DungeonScale and the Solocraft settings patch are merged
+  into `main`, so a plain `git pull` in the tools repo is enough from now on.
+- Next, when wanted: solo enrage-timer handling, moving the gold penalty out of Solocraft (then removing
+  Solocraft), and per-dungeon tuning with the `DungeonScale.Map.<id>.*` overrides.
+
 ## 2026-09-29
 
 **DungeonScale: loot fix** (`tools/pandaria/dungeon-scale.patch`)
