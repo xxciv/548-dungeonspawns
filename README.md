@@ -16,6 +16,10 @@ See [`PATCHNOTES.md`](PATCHNOTES.md) for what changed and when.
   the number of players inside, caps how hard one hit can land, and awards honor for dungeon kills.
   Its design spec (rules, numbers, phases, decisions) is in [`docs/dungeon-scale-spec.md`](docs/dungeon-scale-spec.md).
 
+- [`client/ZRProfessions`](client/ZRProfessions/README.md): a client addon that lets trainers teach up to 4
+  primary professions (the 5.4.8 client UI stops at 2 even when the server allows more) and lists them all
+  with `/profs`.
+
 ## Why some dungeons are empty
 
 Stock SkyFire ships these instances with no creature spawns: Deadmines (36), Ragefire Chasm (389),

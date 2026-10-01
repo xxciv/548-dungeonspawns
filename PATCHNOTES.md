@@ -5,6 +5,19 @@ Newest first. Each entry says what changed, which files it touches, and what you
 
 ## 2026-10-01
 
+**ZRProfessions client addon: up to 4 primary professions** (`client/ZRProfessions/`, new)
+- Why: `MaxPrimaryTradeSkill = 4` already works on the server, but the 5.4.8 client's trainer window
+  (`Blizzard_TrainerUI.lua`) greys out **Train** for a new profession once the Professions tab's 2nd slot is
+  filled. The tab itself only has 2 primary slots, because the client stores only 2 profession skill lines.
+- `ZRProfessions.toc`: addon manifest (interface 50400).
+- `ZRProfessions.lua`: after Blizzard's trainer code runs, re-enables **Train** for a new primary profession
+  while you know fewer than 4 (the server still enforces the real limit when you buy). Gives the confirm
+  popup text for the 3rd/4th profession. Adds a `/profs` panel (also an **All professions** button under the
+  Professions tab) listing every primary profession with rank; clicking a crafting one opens it.
+- `README.md` (addon): why, install steps, limits. Root `README.md` links to it.
+- To pick up: no rebuild, no SQL, no restart. Check `MaxPrimaryTradeSkill = 4` in `worldserver.conf`, then
+  copy `client/ZRProfessions` into each player's `Interface/AddOns/`.
+
 **Solocraft settings to use alongside DungeonScale** (guide section 12, config only)
 - Recommended values: `SoloCraft.Stats.Mult = 0`, `SoloCraft.Spellpower.Mult = 0`,
   `SoloCraft.Stats.Stamina = 0`, `SoloCraft.DamageTaken.Pct = 100`. `SoloCraft.Money.Pct` is your choice;
