@@ -369,9 +369,18 @@ Turn Solocraft's own scaling off so mobs aren't scaled twice, and keep only its 
 ```ini
 SoloCraft.Stats.Mult = 0
 SoloCraft.Spellpower.Mult = 0
+SoloCraft.Stats.Stamina = 0
 SoloCraft.DamageTaken.Pct = 100
 SoloCraft.Money.Pct = 30
 ```
+
+- `Stats.Mult = 0` and `Spellpower.Mult = 0` remove the player buff completely.
+- `Stats.Stamina` does nothing while `Stats.Mult` is 0. Setting it to 0 keeps Stamina out if the buff is ever turned back on.
+- `DamageTaken.Pct = 100` leaves mob damage to DungeonScale. Anything lower would cut it a second time.
+- `Money.Pct` is the gold penalty, so pick whatever you like.
+- Leave the `Solocraft.<Dungeon>` difficulty offsets alone, because with the multipliers at 0 they scale nothing.
+
+Remember that Solocraft reads these only when `worldserver` starts, so restart after you change them.
 
 GM commands (GM level 1 and up):
 - `.dungeonscale info`: player count the instance is scaled for, and each rank's multipliers.

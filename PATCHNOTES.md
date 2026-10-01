@@ -5,6 +5,22 @@ Newest first. Each entry says what changed, which files it touches, and what you
 
 ## 2026-10-01
 
+**Solocraft settings to use alongside DungeonScale** (guide section 12, config only)
+- Recommended values: `SoloCraft.Stats.Mult = 0`, `SoloCraft.Spellpower.Mult = 0`,
+  `SoloCraft.Stats.Stamina = 0`, `SoloCraft.DamageTaken.Pct = 100`. `SoloCraft.Money.Pct` is your choice;
+  it is only the gold penalty (the live server uses 5).
+- Why: Stats.Mult and Spellpower.Mult at 0 switch the player buff off. Stats.Stamina only matters when there is a buff, so
+  0 just keeps it off if Stats.Mult ever goes back up. DamageTaken below 100 would cut mob damage a second time on
+  top of DungeonScale. Difficulty offsets can stay as they are.
+- To pick up: edit `worldserver.conf` and **restart** `worldserver`. Solocraft reads its settings only at
+  startup, so `.reload config` won't apply them. Characters that still have the old buff lose it the next
+  time they leave a dungeon.
+
+**DungeonScale design spec added to the repo** (`docs/dungeon-scale-spec.md`)
+- The one-page spec (rules, starting numbers, phases, decisions and status log) now lives in the repo,
+  linked from the README. It is updated with the Solocraft settings above, the loot and honor fixes, and what
+  is still untested (the hit cap on a big hit, a MoP dungeon, a second player joining mid-run). Docs only.
+
 **DungeonScale: honor fix** (`tools/pandaria/dungeon-scale.patch`)
 - Dungeon kills gave no visible honor. The core stores honor in hundredths (the client shows the total
   divided by 100), but DungeonScale added whole points as-is, so a 5-honor kill added 0.05 honor.
