@@ -14,6 +14,7 @@ See [`PATCHNOTES.md`](PATCHNOTES.md) for what changed and when.
   Section 11 covers an optional Solocraft patch for soloing dungeons with a normal health pool,
   less incoming damage and less gold. Section 12 covers DungeonScale, which instead scales dungeon mobs to
   the number of players inside, caps how hard one hit can land, and awards honor for dungeon kills.
+  Its design spec (rules, numbers, phases, decisions) is in [`docs/dungeon-scale-spec.md`](docs/dungeon-scale-spec.md).
 
 ## Why some dungeons are empty
 
