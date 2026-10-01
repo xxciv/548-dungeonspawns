@@ -3,6 +3,19 @@
 Newest first. Each entry says what changed, which files it touches, and what you need to do to pick it up
 (rebuild, restart, re-run SQL, edit config).
 
+## 2026-10-01
+
+**DungeonScale: honor fix** (`tools/pandaria/dungeon-scale.patch`)
+- Dungeon kills gave no visible honor. The core stores honor in hundredths (the client shows the total
+  divided by 100), but DungeonScale added whole points as-is, so a 5-honor kill added 0.05 honor.
+  `DungeonScale.cpp` now converts to the stored unit, so kills give 1 / 5 / 10 / 25 honor as configured.
+  Honor already earned from earlier runs stays as the small fraction it was.
+- To pick up on a source tree that already has the patch, in `~/pandaria/source` (only that file recompiles):
+  ```sh
+  sed -i 's|^\( *\)player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount));|\1// Honor is stored in hundredths (the client shows the total / 100), so convert whole points first.\n\1CurrencyTypesEntry const* honorEntry = sCurrencyTypesStore.LookupEntry(CURRENCY_TYPE_HONOR_POINTS);\n\1int32 const precision = (honorEntry \&\& (honorEntry->Flags \& CURRENCY_FLAG_HIGH_PRECISION)) ? CURRENCY_PRECISION : 1;\n\1player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount) * precision);|' src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
+  ```
+  then `make install` in `build` and restart `worldserver`.
+
 ## 2026-09-29
 
 **DungeonScale: loot fix** (`tools/pandaria/dungeon-scale.patch`)

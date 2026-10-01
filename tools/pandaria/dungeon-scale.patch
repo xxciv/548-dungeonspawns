@@ -171,10 +171,10 @@ index 3486bd0..4020b0b 100644
      uint32 procVictim = PROC_FLAG_TAKEN_PERIODIC;
 diff --git a/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
 new file mode 100644
-index 0000000..92a9899
+index 0000000..0058cca
 --- /dev/null
 +++ b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
-@@ -0,0 +1,671 @@
+@@ -0,0 +1,674 @@
 +/*
 +* DungeonScale: scaling rules, config loading, hit cap and honor rewards.
 +*/
@@ -831,7 +831,10 @@ index 0000000..92a9899
 +            if (cfg.honorIgnoreGrayMobs && killed->GetLevel() <= Trinity::XP::GetGrayLevel(player->GetLevel()))
 +                return;
 +
-+            player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount));
++            // Honor is stored in hundredths (the client shows the total / 100), so convert whole points first.
++            CurrencyTypesEntry const* honorEntry = sCurrencyTypesStore.LookupEntry(CURRENCY_TYPE_HONOR_POINTS);
++            int32 const precision = (honorEntry && (honorEntry->Flags & CURRENCY_FLAG_HIGH_PRECISION)) ? CURRENCY_PRECISION : 1;
++            player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount) * precision);
 +            TC_LOG_DEBUG("scripts", "[DungeonScale] %s earned %u honor for killing %s (%u, %s).",
 +                player->GetName().c_str(), amount, killed->GetName().c_str(), killed->GetEntry(), RankName(rank));
 +        };
