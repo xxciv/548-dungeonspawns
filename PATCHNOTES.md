@@ -5,24 +5,23 @@ Newest first. Each entry says what changed, which files it touches, and what you
 
 ## 2026-10-01
 
-**Proposed, not applied: normal-mode loot and gold for revamped dungeons**
-(`tools/pandaria/sql/2026_10_01_normal_dungeon_loot_gold.sql` + `_revert.sql`, `tools/pandaria/pickpocket-difficulty.patch`, all new)
+**Proposed, not applied: level-appropriate pickpocket loot in revamped dungeons**
+(`tools/pandaria/pickpocket-difficulty.patch`, `tools/pandaria/sql/2026_10_01_normal_dungeon_pickpocket_loot.sql`
++ `_revert.sql`, all new)
 - Found: Deadmines, Shadowfang Keep, Scarlet Halls, Scarlet Monastery and Scholomance use one creature entry
-  for normal and heroic. Level and stats per difficulty live in `creature_difficulty`, but gold
-  (`creature_template.mingold/maxgold`) and pickpocket loot have no difficulty column, and the stored values
-  came from heroic. Example: Kobold Digger (48229, level 14) drops 76s 84c (open-world level 14 mobs ~19c)
-  and its pickpocket table gives Rogue's Draught (req. 80) and Flame-Scarred Junkbox (Lockpicking 400).
-  Corpse loot is already split correctly by difficulty (`lootmode`), apart from 78 rows of heroic-level items.
-- SQL (111 creatures): scales gold down to the normal level (bosses still pay more than trash), and re-tags
-  heroic-level pickpocket and corpse items as `DUNGEON_HEROIC`. Heroic runs of these dungeons would then also
-  pay the lower gold, because the core has no heroic gold column.
-- Patch: one line in `Player.cpp` so pickpocketing passes the dungeon difficulty to the loot roll (stock
-  passes none, so `DUNGEON_HEROIC` pickpocket rows would never drop). Optional; only matters for heroic.
-  Rebuilds one file plus the link step.
-- Side effect: `SoloCraft.Money.Pct = 5` was tuned against the inflated gold. After this SQL a solo Kobold
-  Digger pays 2c, so raise Money.Pct (e.g. 50-100) when applying.
-- To pick up: back up the three tables, run the SQL on the world DB, restart `worldserver`. Revert file
-  restores every original value.
+  for normal and heroic. Their pickpocket tables were captured in heroic and drop in every difficulty, so a
+  level 14 Kobold Digger gives Rogue's Draught (req. 80) and Flame-Scarred Junkbox (Lockpicking 400). The
+  stock core also rolls pickpocket loot without the dungeon difficulty.
+- Patch: one line in `Player.cpp` (`Player::SendLoot`) passes the map difficulty to the pickpocket loot
+  roll, the same way corpse loot already does. Rows tagged '' (all of the open world) behave as before.
+  Recompiles `Player.cpp` and relinks; not a near-full rebuild.
+- SQL: re-tags 117 heroic-level pickpocket rows as heroic-only, adds a level-appropriate junkbox for normal
+  mode on 27 creatures (Battered for Deadmines/Shadowfang, Worn for the Scarlet dungeons, Sturdy for
+  Scholomance), and re-tags 78 heroic-level corpse-loot rows (e.g. Fungus Squeezings in Shadowfang).
+- Gold was also found to be heroic-level in these dungeons (Kobold Digger 76s 84c); left as is by choice,
+  `SoloCraft.Money.Pct` handles it.
+- To pick up: apply the patch and rebuild, back up the two tables, run the SQL, restart `worldserver`.
+  The revert file restores every original row.
 
 **ZRProfessions client addon: up to 4 primary professions** (`client/ZRProfessions/`, new)
 - Why: `MaxPrimaryTradeSkill = 4` already works on the server, but the 5.4.8 client's trainer window

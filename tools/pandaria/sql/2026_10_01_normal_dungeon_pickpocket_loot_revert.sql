@@ -1,106 +1,6 @@
--- Reverts 2026_10_01_normal_dungeon_loot_gold.sql (restores the stock values).
+-- Reverts 2026_10_01_normal_dungeon_pickpocket_loot.sql (restores the stock rows).
 
--- 1) Gold: original values
-UPDATE `creature_template` SET `mingold` = 7141, `maxgold` = 7141 WHERE `entry` = 48445;
-UPDATE `creature_template` SET `mingold` = 7684, `maxgold` = 7684 WHERE `entry` = 48229;
-UPDATE `creature_template` SET `mingold` = 2137, `maxgold` = 2137 WHERE `entry` = 48278;
-UPDATE `creature_template` SET `mingold` = 7906, `maxgold` = 7906 WHERE `entry` = 48419;
-UPDATE `creature_template` SET `mingold` = 7903, `maxgold` = 7903 WHERE `entry` = 48420;
-UPDATE `creature_template` SET `mingold` = 2285, `maxgold` = 2285 WHERE `entry` = 48441;
-UPDATE `creature_template` SET `mingold` = 7084, `maxgold` = 7084 WHERE `entry` = 48230;
-UPDATE `creature_template` SET `mingold` = 4819, `maxgold` = 4819 WHERE `entry` = 48262;
-UPDATE `creature_template` SET `mingold` = 6975, `maxgold` = 6975 WHERE `entry` = 48279;
-UPDATE `creature_template` SET `mingold` = 8244, `maxgold` = 8244 WHERE `entry` = 48338;
-UPDATE `creature_template` SET `mingold` = 8562, `maxgold` = 8562 WHERE `entry` = 48417;
-UPDATE `creature_template` SET `mingold` = 8541, `maxgold` = 8541 WHERE `entry` = 48418;
-UPDATE `creature_template` SET `mingold` = 7165, `maxgold` = 7165 WHERE `entry` = 48421;
-UPDATE `creature_template` SET `mingold` = 7576, `maxgold` = 7576 WHERE `entry` = 48502;
-UPDATE `creature_template` SET `mingold` = 7403, `maxgold` = 7403 WHERE `entry` = 48505;
-UPDATE `creature_template` SET `mingold` = 5920, `maxgold` = 5920 WHERE `entry` = 48521;
-UPDATE `creature_template` SET `mingold` = 6028, `maxgold` = 6028 WHERE `entry` = 48522;
-UPDATE `creature_template` SET `mingold` = 20008, `maxgold` = 20008 WHERE `entry` = 43778;
-UPDATE `creature_template` SET `mingold` = 13158, `maxgold` = 13158 WHERE `entry` = 47162;
-UPDATE `creature_template` SET `mingold` = 13029, `maxgold` = 13029 WHERE `entry` = 47626;
-UPDATE `creature_template` SET `mingold` = 12490, `maxgold` = 12490 WHERE `entry` = 47739;
-UPDATE `creature_template` SET `mingold` = 4991, `maxgold` = 4991 WHERE `entry` = 58676;
-UPDATE `creature_template` SET `mingold` = 4971, `maxgold` = 4971 WHERE `entry` = 58683;
-UPDATE `creature_template` SET `mingold` = 4784, `maxgold` = 4784 WHERE `entry` = 58684;
-UPDATE `creature_template` SET `mingold` = 4766, `maxgold` = 4766 WHERE `entry` = 58685;
-UPDATE `creature_template` SET `mingold` = 5084, `maxgold` = 5084 WHERE `entry` = 58756;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 10197 WHERE `entry` = 58876;
-UPDATE `creature_template` SET `mingold` = 4121, `maxgold` = 4121 WHERE `entry` = 59175;
-UPDATE `creature_template` SET `mingold` = 5918, `maxgold` = 5918 WHERE `entry` = 59240;
-UPDATE `creature_template` SET `mingold` = 5846, `maxgold` = 5846 WHERE `entry` = 59241;
-UPDATE `creature_template` SET `mingold` = 5897, `maxgold` = 5897 WHERE `entry` = 59372;
-UPDATE `creature_template` SET `mingold` = 5472, `maxgold` = 5472 WHERE `entry` = 59373;
-UPDATE `creature_template` SET `mingold` = 12373, `maxgold` = 12373 WHERE `entry` = 58674;
-UPDATE `creature_template` SET `mingold` = 2817, `maxgold` = 2817 WHERE `entry` = 58898;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59191;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59299;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59302;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59309;
-UPDATE `creature_template` SET `mingold` = 231024, `maxgold` = 231024 WHERE `entry` = 58632;
-UPDATE `creature_template` SET `mingold` = 296577, `maxgold` = 296577 WHERE `entry` = 59150;
-UPDATE `creature_template` SET `mingold` = 241231, `maxgold` = 241231 WHERE `entry` = 59303;
-UPDATE `creature_template` SET `mingold` = 3079, `maxgold` = 3079 WHERE `entry` = 58783;
-UPDATE `creature_template` SET `mingold` = 3671, `maxgold` = 3671 WHERE `entry` = 59705;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59722;
-UPDATE `creature_template` SET `mingold` = 3670, `maxgold` = 3670 WHERE `entry` = 59746;
-UPDATE `creature_template` SET `mingold` = 164, `maxgold` = 164 WHERE `entry` = 60033;
-UPDATE `creature_template` SET `mingold` = 5052, `maxgold` = 5052 WHERE `entry` = 58555;
-UPDATE `creature_template` SET `mingold` = 5058, `maxgold` = 5058 WHERE `entry` = 58569;
-UPDATE `creature_template` SET `mingold` = 4772, `maxgold` = 4772 WHERE `entry` = 58590;
-UPDATE `creature_template` SET `mingold` = 4338, `maxgold` = 4338 WHERE `entry` = 58605;
-UPDATE `creature_template` SET `mingold` = 289664, `maxgold` = 289664 WHERE `entry` = 59789;
-UPDATE `creature_template` SET `mingold` = 62200, `maxgold` = 62200 WHERE `entry` = 3977;
-UPDATE `creature_template` SET `mingold` = 304103, `maxgold` = 304103 WHERE `entry` = 59223;
-UPDATE `creature_template` SET `mingold` = 114737, `maxgold` = 114737 WHERE `entry` = 60040;
-UPDATE `creature_template` SET `mingold` = 4830, `maxgold` = 4830 WHERE `entry` = 58757;
-UPDATE `creature_template` SET `mingold` = 4878, `maxgold` = 4878 WHERE `entry` = 58823;
-UPDATE `creature_template` SET `mingold` = 6124, `maxgold` = 6124 WHERE `entry` = 59368;
-UPDATE `creature_template` SET `mingold` = 6094, `maxgold` = 6094 WHERE `entry` = 59467;
-UPDATE `creature_template` SET `mingold` = 169, `maxgold` = 169 WHERE `entry` = 59501;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59503;
-UPDATE `creature_template` SET `mingold` = 6749, `maxgold` = 6749 WHERE `entry` = 59614;
-UPDATE `creature_template` SET `mingold` = 1191, `maxgold` = 1191 WHERE `entry` = 58822;
-UPDATE `creature_template` SET `mingold` = 5697, `maxgold` = 5697 WHERE `entry` = 59193;
-UPDATE `creature_template` SET `mingold` = 1520, `maxgold` = 1520 WHERE `entry` = 59359;
-UPDATE `creature_template` SET `mingold` = 8396, `maxgold` = 8396 WHERE `entry` = 59613;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 58633;
-UPDATE `creature_template` SET `mingold` = 409121, `maxgold` = 409121 WHERE `entry` = 58664;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 58875;
-UPDATE `creature_template` SET `mingold` = 348770, `maxgold` = 348770 WHERE `entry` = 59080;
-UPDATE `creature_template` SET `mingold` = 301916, `maxgold` = 301916 WHERE `entry` = 59153;
-UPDATE `creature_template` SET `mingold` = 301436, `maxgold` = 301436 WHERE `entry` = 59184;
-UPDATE `creature_template` SET `mingold` = 10197, `maxgold` = 101 WHERE `entry` = 59200;
-UPDATE `creature_template` SET `mingold` = 14077, `maxgold` = 14077 WHERE `entry` = 3864;
-UPDATE `creature_template` SET `mingold` = 13801, `maxgold` = 13801 WHERE `entry` = 3865;
-UPDATE `creature_template` SET `mingold` = 6770, `maxgold` = 6770 WHERE `entry` = 3877;
-UPDATE `creature_template` SET `mingold` = 8490, `maxgold` = 8490 WHERE `entry` = 47131;
-UPDATE `creature_template` SET `mingold` = 8286, `maxgold` = 8286 WHERE `entry` = 47134;
-UPDATE `creature_template` SET `mingold` = 6075, `maxgold` = 6075 WHERE `entry` = 47135;
-UPDATE `creature_template` SET `mingold` = 7528, `maxgold` = 7528 WHERE `entry` = 47140;
-UPDATE `creature_template` SET `mingold` = 6799, `maxgold` = 6799 WHERE `entry` = 47143;
-UPDATE `creature_template` SET `mingold` = 6662, `maxgold` = 6662 WHERE `entry` = 47145;
-UPDATE `creature_template` SET `mingold` = 7463, `maxgold` = 7463 WHERE `entry` = 47231;
-UPDATE `creature_template` SET `mingold` = 7302, `maxgold` = 7302 WHERE `entry` = 47232;
-UPDATE `creature_template` SET `mingold` = 12163, `maxgold` = 12163 WHERE `entry` = 3869;
-UPDATE `creature_template` SET `mingold` = 12190, `maxgold` = 12190 WHERE `entry` = 3870;
-UPDATE `creature_template` SET `mingold` = 10030, `maxgold` = 10030 WHERE `entry` = 3873;
-UPDATE `creature_template` SET `mingold` = 7431, `maxgold` = 7431 WHERE `entry` = 3875;
-UPDATE `creature_template` SET `mingold` = 8930, `maxgold` = 8930 WHERE `entry` = 47132;
-UPDATE `creature_template` SET `mingold` = 8687, `maxgold` = 8687 WHERE `entry` = 47136;
-UPDATE `creature_template` SET `mingold` = 7080, `maxgold` = 7080 WHERE `entry` = 47137;
-UPDATE `creature_template` SET `mingold` = 6824, `maxgold` = 6824 WHERE `entry` = 47138;
-UPDATE `creature_template` SET `mingold` = 8675, `maxgold` = 8675 WHERE `entry` = 47141;
-UPDATE `creature_template` SET `mingold` = 8679, `maxgold` = 8679 WHERE `entry` = 47146;
-UPDATE `creature_template` SET `mingold` = 12181, `maxgold` = 12181 WHERE `entry` = 3887;
-UPDATE `creature_template` SET `mingold` = 9945, `maxgold` = 9945 WHERE `entry` = 4278;
-UPDATE `creature_template` SET `mingold` = 12683, `maxgold` = 12683 WHERE `entry` = 46962;
-UPDATE `creature_template` SET `mingold` = 12829, `maxgold` = 12829 WHERE `entry` = 46963;
-UPDATE `creature_template` SET `mingold` = 13127, `maxgold` = 13127 WHERE `entry` = 46964;
-
--- 2) Pickpocket: heroic-level items only drop in heroic (rogue pickpocket)
+-- 1) Pickpocket: heroic-level items (level 80-90 junkboxes, potions, food, pricey grey junk) only in heroic
 DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 3873 AND `item` = 58267 AND `lootmode` = 'DUNGEON_HEROIC';
 INSERT INTO `pickpocketing_loot_template` VALUES (3873, 58267, 19.8347, '', 0, 1, 1);
 DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47131 AND `item` = 53010 AND `lootmode` = 'DUNGEON_HEROIC';
@@ -336,7 +236,36 @@ INSERT INTO `pickpocketing_loot_template` VALUES (59614, 88165, 0.5, '', 1, 1, 1
 DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 60040 AND `item` = 87530 AND `lootmode` = 'DUNGEON_HEROIC';
 INSERT INTO `pickpocketing_loot_template` VALUES (60040, 87530, 0.3, '', 1, 1, 1);
 
--- 3) Corpse loot: heroic-level items tagged for every difficulty or for normal
+-- 2) Pickpocket: remove the added normal-mode junkboxes
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47131 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47132 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47134 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47135 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47136 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47137 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47138 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47140 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47141 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47143 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47145 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 47146 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48229 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48230 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48262 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48278 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48279 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48417 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48521 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 48522 AND `item` = 16882 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 58555 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 58632 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 58683 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 58685 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 58757 AND `item` = 16884 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 59240 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+DELETE FROM `pickpocketing_loot_template` WHERE `entry` = 59241 AND `item` = 16883 AND `lootmode` = 'DUNGEON_NORMAL';
+
+-- 3) Corpse loot: heroic-level items that were tagged for every difficulty or for normal
 INSERT INTO `creature_loot_template` VALUES (3870, 59230, 2.4917, 'DUNGEON_NORMAL', 0, 1, 1);
 INSERT INTO `creature_loot_template` VALUES (3873, 59230, 2.9646, 'DUNGEON_NORMAL', 0, 1, 1);
 INSERT INTO `creature_loot_template` VALUES (3875, 59230, 2.2244, 'DUNGEON_NORMAL', 0, 1, 1);
