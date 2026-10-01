@@ -1,0 +1,1411 @@
+diff --git a/src/server/game/Entities/Creature/Creature.cpp b/src/server/game/Entities/Creature/Creature.cpp
+index e5dccbb..c249874 100644
+--- a/src/server/game/Entities/Creature/Creature.cpp
++++ b/src/server/game/Entities/Creature/Creature.cpp
+@@ -194,6 +194,8 @@ void Creature::AddToWorld()
+         if (IsVehicle())
+             GetVehicleKit()->Install();
+ 
++        sScriptMgr->OnCreatureAddWorld(this);
++
+         if (((GetCreatureTemplate()->rank == CREATURE_ELITE_RARE || GetCreatureTemplate()->rank == CREATURE_ELITE_RAREELITE) && GetZoneId() == 6757) || // Timeless Isle (or only rare elite?...)
+             (!GetMap()->Instanceable() && sLootMgr->GetPersonalLoot(GetEntry())))   // World Bosses
+             m_hasNormalLootMode = false;
+@@ -204,6 +206,7 @@ void Creature::RemoveFromWorld()
+ {
+     if (IsInWorld())
+     {
++        sScriptMgr->OnCreatureRemoveWorld(this);
+         if (m_zoneScript)
+             m_zoneScript->OnCreatureRemove(this);
+         if (m_formation)
+@@ -1184,6 +1187,8 @@ void Creature::SelectLevel(const CreatureTemplate* cinfo)
+ 
+     SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, attackpower);
+     SetModifierValue(UNIT_MOD_ATTACK_POWER_RANGED, BASE_VALUE, attackpower);
++
++    sScriptMgr->OnCreatureSelectLevel(this);
+ }
+ 
+ float Creature::_GetHealthMod(int32 Rank)
+diff --git a/src/server/game/Entities/Unit/Unit.cpp b/src/server/game/Entities/Unit/Unit.cpp
+index 8422437..b523766 100644
+--- a/src/server/game/Entities/Unit/Unit.cpp
++++ b/src/server/game/Entities/Unit/Unit.cpp
+@@ -15921,6 +15921,9 @@ void Unit::Kill(Unit* victim, bool durabilityLoss, SpellInfo const* spellInfo)
+         }
+ 
+         player->RewardPlayerAndGroupAtKill(victim, false);
++
++        if (creature)
++            sScriptMgr->OnCreatureKilled(creature, player);
+     }
+ 
+     // Do KILL and KILLED procs. KILL proc is called only for the unit who landed the killing blow (and its owner - for pets and totems) regardless of who tapped the victim
+diff --git a/src/server/game/Scripting/ScriptMgr.cpp b/src/server/game/Scripting/ScriptMgr.cpp
+index 706c386..0f6c40b 100644
+--- a/src/server/game/Scripting/ScriptMgr.cpp
++++ b/src/server/game/Scripting/ScriptMgr.cpp
+@@ -247,6 +247,7 @@ void ScriptMgr::Unload()
+     SCR_CLEAR(GroupScript);
+     SCR_CLEAR(GameEventScript);
+     SCR_CLEAR(UnitScript);
++    SCR_CLEAR(AllCreatureScript);
+     SCR_CLEAR(SceneScript);
+ 
+     #undef SCR_CLEAR
+@@ -1529,6 +1530,31 @@ void ScriptMgr::ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& dama
+     FOREACH_SCRIPT(UnitScript)->ModifySpellDamageTaken(target, attacker, damage);
+ }
+ 
++// AllCreature
++void ScriptMgr::OnCreatureAddWorld(Creature* creature)
++{
++    ASSERT(creature);
++    FOREACH_SCRIPT(AllCreatureScript)->OnCreatureAddWorld(creature);
++}
++
++void ScriptMgr::OnCreatureRemoveWorld(Creature* creature)
++{
++    ASSERT(creature);
++    FOREACH_SCRIPT(AllCreatureScript)->OnCreatureRemoveWorld(creature);
++}
++
++void ScriptMgr::OnCreatureSelectLevel(Creature* creature)
++{
++    ASSERT(creature);
++    FOREACH_SCRIPT(AllCreatureScript)->OnCreatureSelectLevel(creature);
++}
++
++void ScriptMgr::OnCreatureKilled(Creature* killed, Player* rewardedPlayer)
++{
++    ASSERT(killed);
++    FOREACH_SCRIPT(AllCreatureScript)->OnCreatureKilled(killed, rewardedPlayer);
++}
++
+ // Scene
+ void ScriptMgr::OnSceneStart(Player* player, uint32 sceneInstanceID, SceneTemplate const* sceneTemplate)
+ {
+@@ -1731,6 +1757,12 @@ GroupScript::GroupScript(const char* name)
+     ScriptRegistry<GroupScript>::AddScript(this);
+ }
+ 
++AllCreatureScript::AllCreatureScript(const char* name)
++    : ScriptObject(name)
++{
++    ScriptRegistry<AllCreatureScript>::AddScript(this);
++}
++
+ SceneScript::SceneScript(const char* name)
+     : ScriptObject(name)
+ {
+@@ -1779,6 +1811,7 @@ template class ScriptRegistry<GuildScript>;
+ template class ScriptRegistry<GroupScript>;
+ template class ScriptRegistry<GameEventScript>;
+ template class ScriptRegistry<UnitScript>;
++template class ScriptRegistry<AllCreatureScript>;
+ template class ScriptRegistry<SceneScript>;
+ 
+ // Undefine utility macros.
+diff --git a/src/server/game/Scripting/ScriptMgr.h b/src/server/game/Scripting/ScriptMgr.h
+index dce534b..bfd73f7 100644
+--- a/src/server/game/Scripting/ScriptMgr.h
++++ b/src/server/game/Scripting/ScriptMgr.h
+@@ -876,6 +876,29 @@ class GroupScript : public ScriptObject
+         virtual void OnDisband(Group* /*group*/) { }
+ };
+ 
++class AllCreatureScript : public ScriptObject
++{
++    protected:
++
++        AllCreatureScript(const char* name);
++
++    public:
++
++        bool IsDatabaseBound() const final { return false; }
++
++        // Called after a creature has been added to the world (its level, health and damage are set by then).
++        virtual void OnCreatureAddWorld(Creature* /*creature*/) { }
++
++        // Called before a creature is removed from the world.
++        virtual void OnCreatureRemoveWorld(Creature* /*creature*/) { }
++
++        // Called after Creature::SelectLevel() has (re)set level, health and damage (respawn, entry change).
++        virtual void OnCreatureSelectLevel(Creature* /*creature*/) { }
++
++        // Called when a creature dies and a player (with their group) was rewarded for the kill.
++        virtual void OnCreatureKilled(Creature* /*killed*/, Player* /*rewardedPlayer*/) { }
++};
++
+ class SceneScript : public ScriptObject
+ {
+     protected:
+@@ -1220,6 +1243,13 @@ class ScriptMgr
+         void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage);
+         void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage);
+ 
++    public: /* AllCreatureScript */
++
++        void OnCreatureAddWorld(Creature* creature);
++        void OnCreatureRemoveWorld(Creature* creature);
++        void OnCreatureSelectLevel(Creature* creature);
++        void OnCreatureKilled(Creature* killed, Player* rewardedPlayer);
++
+     public: /* Scheduled scripts */
+ 
+         uint32 IncreaseScheduledScriptsCount() { return ++_scheduledScripts; }
+diff --git a/src/server/game/Spells/Auras/SpellAuraEffects.cpp b/src/server/game/Spells/Auras/SpellAuraEffects.cpp
+index 3486bd0..4020b0b 100644
+--- a/src/server/game/Spells/Auras/SpellAuraEffects.cpp
++++ b/src/server/game/Spells/Auras/SpellAuraEffects.cpp
+@@ -6385,9 +6385,6 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
+     if (!(GetSpellInfo()->AttributesCu & SPELL_ATTR0_CU_IGNORE_RESILIENCE))
+         caster->ApplyResilience(target, &amount);
+ 
+-    // Script hook: let scripts change the tick after mitigation, before absorbs
+-    sScriptMgr->ModifyPeriodicDamageAurasTick(target, caster, amount);
+-
+     // Set trigger flag
+     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
+     uint32 procVictim = PROC_FLAG_TAKEN_PERIODIC;
+diff --git a/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
+new file mode 100644
+index 0000000..0058cca
+--- /dev/null
++++ b/src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
+@@ -0,0 +1,674 @@
++/*
++* DungeonScale: scaling rules, config loading, hit cap and honor rewards.
++*/
++
++#include "DungeonScale.h"
++
++#include "Config.h"
++#include "Creature.h"
++#include "DBCStores.h"
++#include "Formulas.h"
++#include "Group.h"
++#include "Log.h"
++#include "Map.h"
++#include "ObjectMgr.h"
++#include "Player.h"
++#include "TemporarySummon.h"
++#include "Timer.h"
++
++#include <algorithm>
++#include <cctype>
++#include <cmath>
++#include <cstdlib>
++#include <sstream>
++
++namespace DungeonScale
++{
++    namespace
++    {
++        std::string const MAP_PREFIX = "DungeonScale.Map.";
++
++        char const* const RANK_NAMES[RANK_COUNT] = { "Normal", "Elite", "MiniBoss", "EndBoss" };
++        char const* const CONTENT_NAMES[CONTENT_COUNT] = { "Dungeon", "Raid", "Scenario" };
++        char const* const STAT_NAMES[STAT_COUNT] = { "Health", "Damage" };
++
++        // Defaults for DungeonScale.<Content>.<Stat>.<Rank>, used when a key is missing from worldserver.conf.
++        float const DEFAULT_SOLO[CONTENT_COUNT][STAT_COUNT][RANK_COUNT] =
++        {
++            //  Normal Elite  MiniBoss EndBoss
++            { { 0.30f, 0.30f, 0.35f, 0.40f },       // Dungeon  Health
++              { 0.30f, 0.30f, 0.35f, 0.35f } },     // Dungeon  Damage
++            { { 0.08f, 0.08f, 0.10f, 0.12f },       // Raid     Health
++              { 0.15f, 0.15f, 0.15f, 0.15f } },     // Raid     Damage
++            { { 0.45f, 0.45f, 0.50f, 0.50f },       // Scenario Health
++              { 0.50f, 0.50f, 0.50f, 0.50f } },     // Scenario Damage
++        };
++
++        // How often each player's update re-checks its instance for joins, leaves and creatures leaving combat.
++        uint32 const REFRESH_INTERVAL_MS = 1000;
++
++        std::string ToLower(std::string value)
++        {
++            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return char(std::tolower(c)); });
++            return value;
++        }
++
++        std::string Trim(std::string const& value)
++        {
++            std::size_t first = value.find_first_not_of(" \t\"");
++            if (first == std::string::npos)
++                return "";
++            std::size_t last = value.find_last_not_of(" \t\"");
++            return value.substr(first, last - first + 1);
++        }
++
++        std::vector<std::string> Split(std::string const& value, char separator)
++        {
++            std::vector<std::string> parts;
++            std::stringstream stream(value);
++            std::string part;
++            while (std::getline(stream, part, separator))
++                parts.push_back(Trim(part));
++            return parts;
++        }
++
++        bool ParseRank(std::string const& text, Rank& rank)
++        {
++            std::string const name = ToLower(Trim(text));
++            for (uint8 i = 0; i < RANK_COUNT; ++i)
++            {
++                if (name == ToLower(RANK_NAMES[i]) || name == std::to_string(i))
++                {
++                    rank = Rank(i);
++                    return true;
++                }
++            }
++            return false;
++        }
++
++        bool ParseStat(std::string const& text, Stat& stat)
++        {
++            std::string const name = ToLower(text);
++            for (uint8 i = 0; i < STAT_COUNT; ++i)
++            {
++                if (name == ToLower(STAT_NAMES[i]))
++                {
++                    stat = Stat(i);
++                    return true;
++                }
++            }
++            return false;
++        }
++
++        bool ParseMultiplier(std::string const& text, float& value)
++        {
++            char* end = nullptr;
++            value = std::strtof(text.c_str(), &end);
++            return end != text.c_str() && value > 0.0f && value <= 10.0f;
++        }
++
++        uint64 StateKey(Map const* map)
++        {
++            return (uint64(map->GetId()) << 32) | uint64(map->GetInstanceId());
++        }
++
++        Content GetContent(Map const* map)
++        {
++            if (map->IsRaid())
++                return Content::Raid;
++            if (map->IsScenario())
++                return Content::Scenario;
++            return Content::Dungeon;
++        }
++    }
++
++    char const* RankName(Rank rank) { return RANK_NAMES[uint8(rank)]; }
++    char const* ContentName(Content content) { return CONTENT_NAMES[uint8(content)]; }
++
++    Manager* Manager::instance()
++    {
++        static Manager instance;
++        return &instance;
++    }
++
++    Manager::Manager() : _generation(1)
++    {
++        _configs.push_back(std::make_unique<ScaleConfig>());         // disabled until the config is loaded
++        _config.store(_configs.back().get(), std::memory_order_release);
++    }
++
++    // ------------------------------------------------------------------
++    // Configuration
++    // ------------------------------------------------------------------
++
++    void Manager::LoadConfig(bool reload)
++    {
++        std::unique_ptr<ScaleConfig> cfg = std::make_unique<ScaleConfig>();
++
++        cfg->enable = sConfigMgr->GetBoolDefault("DungeonScale.Enable", false);
++        for (uint8 c = 0; c < CONTENT_COUNT; ++c)
++        {
++            std::string const key = std::string("DungeonScale.") + CONTENT_NAMES[c] + ".Enable";
++            cfg->contentEnabled[c] = sConfigMgr->GetBoolDefault(key.c_str(), Content(c) == Content::Dungeon);
++        }
++        cfg->challengeModeEnabled = sConfigMgr->GetBoolDefault("DungeonScale.ChallengeMode.Enable", false);
++        cfg->minPlayers = uint32(std::max(1, sConfigMgr->GetIntDefault("DungeonScale.MinPlayers", 1)));
++        cfg->summonsInheritBossScaling = sConfigMgr->GetBoolDefault("DungeonScale.Summons.InheritBossScaling", true);
++
++        for (std::string const& entry : Split(sConfigMgr->GetStringDefault("DungeonScale.IgnoreEntries", ""), ','))
++            if (uint32 id = uint32(std::strtoul(entry.c_str(), nullptr, 10)))
++                cfg->ignoredEntries.insert(id);
++
++        // DungeonScale.<Content>.<Stat>.<Rank>
++        for (uint8 c = 0; c < CONTENT_COUNT; ++c)
++        {
++            for (uint8 s = 0; s < STAT_COUNT; ++s)
++            {
++                for (uint8 r = 0; r < RANK_COUNT; ++r)
++                {
++                    std::string const key = std::string("DungeonScale.") + CONTENT_NAMES[c] + "." + STAT_NAMES[s] + "." + RANK_NAMES[r];
++                    float value = DEFAULT_SOLO[c][s][r];
++                    std::string const text = Trim(sConfigMgr->GetStringDefault(key.c_str(), ""));
++                    if (!text.empty() && !ParseMultiplier(text, value))
++                    {
++                        TC_LOG_ERROR("scripts", "[DungeonScale] %s = '%s' is not a multiplier in (0, 10]; using %.2f.", key.c_str(), text.c_str(), DEFAULT_SOLO[c][s][r]);
++                        value = DEFAULT_SOLO[c][s][r];
++                    }
++                    cfg->soloValue[c][s][r] = value;
++                }
++            }
++        }
++
++        // DungeonScale.Map.<mapId>.Enable | .<Stat> | .<Stat>.<Rank>
++        for (std::string const& key : sConfigMgr->GetKeysByString(MAP_PREFIX))
++        {
++            if (key.compare(0, MAP_PREFIX.size(), MAP_PREFIX) != 0)
++                continue;
++
++            std::vector<std::string> const parts = Split(key.substr(MAP_PREFIX.size()), '.');
++            std::string const text = Trim(sConfigMgr->GetStringDefault(key.c_str(), ""));
++            uint32 const mapId = parts.empty() ? 0 : uint32(std::strtoul(parts[0].c_str(), nullptr, 10));
++            if (parts.size() < 2 || (!mapId && parts[0] != "0") || text.empty())
++            {
++                TC_LOG_ERROR("scripts", "[DungeonScale] Ignoring malformed override '%s'.", key.c_str());
++                continue;
++            }
++
++            MapOverride& entry = cfg->mapOverrides[mapId];
++            Stat stat;
++            Rank rank;
++            float value;
++            if (parts.size() == 2 && ToLower(parts[1]) == "enable")
++                entry.enable = sConfigMgr->GetBoolDefault(key.c_str(), true) ? 1 : 0;
++            else if (!ParseStat(parts[1], stat) || (parts.size() == 3 && !ParseRank(parts[2], rank)) || parts.size() > 3)
++                TC_LOG_ERROR("scripts", "[DungeonScale] Unknown override key '%s' (expected Enable, Health, Damage, Health.<Rank> or Damage.<Rank>).", key.c_str());
++            else if (!ParseMultiplier(text, value))
++                TC_LOG_ERROR("scripts", "[DungeonScale] %s = '%s' is not a multiplier in (0, 10]; ignored.", key.c_str(), text.c_str());
++            else if (parts.size() == 2)
++                entry.allRanks[uint8(stat)] = value;
++            else
++                entry.perRank[uint8(stat)][uint8(rank)] = value;
++        }
++
++        // DungeonScale.RankOverride = "entry:Rank, entry:Rank"
++        for (std::string const& pair : Split(sConfigMgr->GetStringDefault("DungeonScale.RankOverride", ""), ','))
++        {
++            if (pair.empty())
++                continue;
++            std::vector<std::string> const fields = Split(pair, ':');
++            Rank rank;
++            uint32 const entry = fields.size() == 2 ? uint32(std::strtoul(fields[0].c_str(), nullptr, 10)) : 0;
++            if (!entry || !ParseRank(fields[1], rank))
++            {
++                TC_LOG_ERROR("scripts", "[DungeonScale] Ignoring malformed RankOverride entry '%s' (expected entry:Normal|Elite|MiniBoss|EndBoss).", pair.c_str());
++                continue;
++            }
++            cfg->rankOverrides[entry] = rank;
++        }
++
++        cfg->hitCapPct = std::min(100.0f, std::max(0.0f, sConfigMgr->GetFloatDefault("DungeonScale.HitCap.Pct", 35.0f)));
++
++        cfg->honorEnable = sConfigMgr->GetBoolDefault("DungeonScale.Honor.Enable", true);
++        for (uint8 r = 0; r < RANK_COUNT; ++r)
++        {
++            std::string const key = std::string("DungeonScale.Honor.") + RANK_NAMES[r];
++            cfg->honor[r] = uint32(std::max(0, sConfigMgr->GetIntDefault(key.c_str(), int32(cfg->honor[r]))));
++        }
++        cfg->honorIgnoreSummons = sConfigMgr->GetBoolDefault("DungeonScale.Honor.IgnoreSummons", true);
++        cfg->honorIgnoreGrayMobs = sConfigMgr->GetBoolDefault("DungeonScale.Honor.IgnoreGrayMobs", false);
++
++        TC_LOG_INFO("server.loading", "[DungeonScale] %s config: %s, %u map override(s), %u rank override(s), hit cap %.0f%%, honor %s.",
++            reload ? "Reloaded" : "Loaded", cfg->enable ? "ENABLED" : "disabled", uint32(cfg->mapOverrides.size()),
++            uint32(cfg->rankOverrides.size()), cfg->hitCapPct, cfg->honorEnable ? "on" : "off");
++
++        // Publish the new snapshot. Old ones are kept so that no reader ever sees freed memory.
++        _configs.push_back(std::move(cfg));
++        _config.store(_configs.back().get(), std::memory_order_release);
++        ++_generation;                                          // makes every instance re-apply health
++    }
++
++    // ------------------------------------------------------------------
++    // Queries
++    // ------------------------------------------------------------------
++
++    bool Manager::IsScaledMap(Map const* map) const
++    {
++        ScaleConfig const& cfg = GetConfig();
++        if (!cfg.enable || !map || !map->IsDungeon())
++            return false;
++
++        auto itr = cfg.mapOverrides.find(map->GetId());
++        if (itr != cfg.mapOverrides.end() && itr->second.enable >= 0)
++            return itr->second.enable == 1;
++
++        if (map->IsChallengeDungeon() && !cfg.challengeModeEnabled)
++            return false;
++
++        return cfg.contentEnabled[uint8(GetContent(map))];
++    }
++
++    bool Manager::IsScalable(Creature const* creature) const
++    {
++        if (!creature || creature->IsPet() || creature->IsTotem())
++            return false;
++
++        // Player pets, guardians, charmed mobs and vehicles players can ride are left alone.
++        if (creature->IsControlledByPlayer() || creature->GetCharmerOrOwnerPlayerOrPlayerItself())
++            return false;
++        if (creature->IsVehicle() && !creature->IsHostileToPlayers())
++            return false;
++
++        if (GetConfig().ignoredEntries.count(creature->GetEntry()))
++            return false;
++
++        return IsScaledMap(creature->GetMap());
++    }
++
++    bool Manager::IsEndBoss(Creature const* creature) const
++    {
++        Map const* map = creature->GetMap();
++        DungeonEncounterList const* encounters = sObjectMgr->GetDungeonEncounterList(map->GetId(), map->GetDifficulty());
++        if (!encounters)
++            return false;
++
++        for (DungeonEncounter const* encounter : *encounters)
++            if (encounter->creditType == ENCOUNTER_CREDIT_KILL_CREATURE
++                && encounter->creditEntry == creature->GetEntry() && encounter->lastEncounterDungeon)
++                return true;
++
++        return false;
++    }
++
++    Rank Manager::GetBaseRank(Creature const* creature) const
++    {
++        ScaleConfig const& cfg = GetConfig();
++        CreatureTemplate const* cinfo = creature->GetCreatureTemplate();
++
++        auto itr = cfg.rankOverrides.find(creature->GetEntry());
++        if (itr == cfg.rankOverrides.end())
++            itr = cfg.rankOverrides.find(cinfo->Entry);          // difficulty entry
++        if (itr != cfg.rankOverrides.end())
++            return itr->second;
++
++        if (creature->IsDungeonBoss() || cinfo->rank == CREATURE_ELITE_WORLDBOSS || (cinfo->type_flags & CREATURE_TYPEFLAGS_BOSS))
++            return IsEndBoss(creature) ? Rank::EndBoss : Rank::MiniBoss;
++
++        if (cinfo->rank == CREATURE_ELITE_ELITE || cinfo->rank == CREATURE_ELITE_RAREELITE)
++            return Rank::Elite;
++
++        return Rank::Normal;
++    }
++
++    Rank Manager::GetScalingRank(Creature const* creature) const
++    {
++        Rank const rank = GetBaseRank(creature);
++        if (!GetConfig().summonsInheritBossScaling || !creature->IsSummon())
++            return rank;
++
++        // Adds and triggers summoned by a boss are scaled like the boss itself.
++        if (Unit* summoner = creature->ToTempSummon()->GetSummoner())
++            if (Creature* boss = summoner->ToCreature())
++                if (boss != creature && !boss->IsControlledByPlayer())
++                {
++                    Rank const bossRank = GetBaseRank(boss);
++                    if (bossRank >= Rank::MiniBoss && bossRank > rank)
++                        return bossRank;
++                }
++
++        return rank;
++    }
++
++    uint32 Manager::GetMaxPlayers(Map const* map) const
++    {
++        if (InstanceMap const* instance = map->ToInstanceMap())
++            if (uint32 maxPlayers = instance->GetMaxPlayers())
++                return maxPlayers;
++
++        switch (GetContent(map))
++        {
++            case Content::Raid:     return 10;
++            case Content::Scenario: return 3;
++            default:                return 5;
++        }
++    }
++
++    uint32 Manager::GetEffectivePlayers(Map const* map) const
++    {
++        uint32 const maxPlayers = GetMaxPlayers(map);
++        uint32 const minPlayers = std::min(GetConfig().minPlayers, maxPlayers);
++        return std::max(minPlayers, std::min(map->GetPlayersCountExceptGMs(), maxPlayers));
++    }
++
++    uint32 Manager::GetScaledPlayers(Creature const* creature)
++    {
++        Map const* map = creature->GetMap();
++        if (InstanceState* state = FindState(map))
++        {
++            auto itr = state->creatures.find(const_cast<Creature*>(creature));
++            if (itr != state->creatures.end() && itr->second.players)
++                return itr->second.players;
++        }
++        return GetEffectivePlayers(map);
++    }
++
++    float Manager::GetMultiplier(Map const* map, Rank rank, Stat stat, uint32 players) const
++    {
++        ScaleConfig const& cfg = GetConfig();
++        uint8 const s = uint8(stat);
++        uint8 const r = uint8(rank);
++
++        float solo = cfg.soloValue[uint8(GetContent(map))][s][r];
++        auto itr = cfg.mapOverrides.find(map->GetId());
++        if (itr != cfg.mapOverrides.end())
++        {
++            if (itr->second.perRank[s][r] > 0.0f)
++                solo = itr->second.perRank[s][r];
++            else if (itr->second.allRanks[s] > 0.0f)
++                solo = itr->second.allRanks[s];
++        }
++
++        // Straight line from the solo value (1 player) to 1.0 (full group).
++        uint32 const maxPlayers = GetMaxPlayers(map);
++        if (players >= maxPlayers || maxPlayers <= 1)
++            return 1.0f;
++
++        float const progress = float(std::max(players, 1u) - 1) / float(maxPlayers - 1);
++        return solo + (1.0f - solo) * progress;
++    }
++
++    float Manager::GetMultiplier(Creature const* creature, Stat stat)
++    {
++        return GetMultiplier(creature->GetMap(), GetScalingRank(creature), stat, GetScaledPlayers(creature));
++    }
++
++    // ------------------------------------------------------------------
++    // Health
++    // ------------------------------------------------------------------
++
++    void Manager::ApplyHealth(Creature* creature, uint32 players) const
++    {
++        float const base = float(creature->GetCreateHealth());
++        if (base <= 0.0f)
++            return;
++
++        float const multiplier = IsScalable(creature) ? GetMultiplier(creature->GetMap(), GetScalingRank(creature), Stat::Health, players) : 1.0f;
++        float const wanted = std::max(1.0f, std::floor(base * multiplier));
++        if (std::fabs(creature->GetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE) - wanted) < 0.5f)
++            return;
++
++        float const pct = creature->GetMaxHealth() ? creature->GetHealthPct() : 100.0f;
++
++        // Scale the base value (not max health directly) so health auras keep stacking on top of it.
++        creature->SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, wanted);
++        creature->UpdateMaxHealth();
++
++        if (creature->IsAlive())
++        {
++            uint32 const maxHealth = creature->GetMaxHealth();
++            uint32 const health = uint32(std::ceil(float(maxHealth) * pct / 100.0f));
++            creature->SetHealth(std::max(1u, std::min(health, maxHealth)));
++
++            // Loot, gold and kill rewards need players to deal half the creature's health. That requirement was
++            // set from the unscaled health, which a scaled-down creature can never lose, so reset it to match.
++            creature->ResetPlayerDamageReq();
++        }
++    }
++
++    void Manager::Track(Creature* creature)
++    {
++        Map* map = creature->GetMap();
++        InstanceState& state = GetOrCreateState(map);
++        uint32 const players = GetEffectivePlayers(map);
++        uint32 const generation = _generation.load(std::memory_order_relaxed);
++        if (!state.players)
++        {
++            state.players = players;
++            state.generation = generation;
++        }
++
++        // A creature that is just spawning (or respawning) is scaled for the players inside right now.
++        state.creatures[creature] = { players, generation };
++        ApplyHealth(creature, players);
++    }
++
++    void Manager::RefreshInstance(Map* map)
++    {
++        if (!map || !map->IsDungeon())
++            return;
++
++        InstanceState* state = FindState(map);
++        if (!state)
++            return;
++
++        uint32 const players = GetEffectivePlayers(map);
++        uint32 const generation = _generation.load(std::memory_order_relaxed);
++        if (state->players != players || state->generation != generation)
++        {
++            state->players = players;
++            state->generation = generation;
++            state->pending = true;
++        }
++
++        if (!state->pending)
++            return;
++
++        // Creatures in combat keep their current values; they are picked up once they leave combat.
++        bool waiting = false;
++        uint32 rescaled = 0;
++        for (auto& itr : state->creatures)
++        {
++            CreatureScale& scale = itr.second;
++            if (scale.players == players && scale.generation == generation)
++                continue;
++
++            if (itr.first->IsInCombat())
++            {
++                waiting = true;
++                continue;
++            }
++
++            scale.players = players;
++            scale.generation = generation;
++            ApplyHealth(itr.first, players);
++            ++rescaled;
++        }
++        state->pending = waiting;
++
++        if (rescaled)
++            TC_LOG_DEBUG("scripts", "[DungeonScale] Map %u instance %u: rescaled %u creature(s) for %u/%u player(s)%s.",
++                map->GetId(), map->GetInstanceId(), rescaled, players, GetMaxPlayers(map), waiting ? ", others wait until out of combat" : "");
++    }
++
++    void Manager::OnPlayerUpdate(Player* player)
++    {
++        Map* map = player->GetMap();
++        if (!map || !map->IsDungeon())
++            return;
++
++        InstanceState* state = FindState(map);
++        if (!state)
++            return;
++
++        // Every player in the instance is updated on the same thread in the same tick, so one shared timestamp is enough.
++        uint32 const now = getMSTime();
++        if (state->lastRefresh && getMSTimeDiff(state->lastRefresh, now) < REFRESH_INTERVAL_MS)
++            return;
++        state->lastRefresh = now;
++
++        RefreshInstance(map);
++    }
++
++    // ------------------------------------------------------------------
++    // Instance state (one entry per instance; values are owned by that map's update thread)
++    // ------------------------------------------------------------------
++
++    InstanceState* Manager::FindState(Map const* map)
++    {
++        std::lock_guard<std::mutex> guard(_stateLock);
++        auto itr = _states.find(StateKey(map));
++        return itr == _states.end() ? nullptr : &itr->second;
++    }
++
++    InstanceState& Manager::GetOrCreateState(Map const* map)
++    {
++        std::lock_guard<std::mutex> guard(_stateLock);
++        return _states[StateKey(map)];
++    }
++
++    void Manager::EraseState(Map const* map)
++    {
++        std::lock_guard<std::mutex> guard(_stateLock);
++        _states.erase(StateKey(map));
++    }
++
++    // ------------------------------------------------------------------
++    // Hooks
++    // ------------------------------------------------------------------
++
++    void Manager::OnCreatureAddWorld(Creature* creature)
++    {
++        if (!IsScalable(creature))
++            return;
++
++        Track(creature);
++    }
++
++    void Manager::OnCreatureRemoveWorld(Creature* creature)
++    {
++        Map const* map = creature->GetMap();
++        if (!map || !map->IsDungeon())
++            return;
++
++        if (InstanceState* state = FindState(map))
++        {
++            state->creatures.erase(creature);
++            if (state->creatures.empty())
++                EraseState(map);
++        }
++    }
++
++    void Manager::OnCreatureSelectLevel(Creature* creature)
++    {
++        // Spawning creatures are handled by OnCreatureAddWorld once they are fully set up;
++        // this catches respawns and entry changes of creatures already in the world.
++        if (!creature->IsInWorld())
++            return;
++
++        if (IsScalable(creature))
++            Track(creature);
++    }
++
++    uint32 Manager::ScaleDamage(Unit* /*target*/, Unit* attacker, uint32 damage)
++    {
++        if (!damage || !attacker || attacker->GetTypeId() != TYPEID_UNIT)
++            return damage;
++
++        Creature* creature = attacker->ToCreature();
++        if (!IsScalable(creature))
++            return damage;
++
++        return uint32(float(damage) * GetMultiplier(creature, Stat::Damage));
++    }
++
++    uint32 Manager::ScaleHeal(Unit* healer, Unit* receiver, uint32 heal)
++    {
++        // Only NPC-on-NPC healing is scaled, so a mob healing a scaled ally does not out-heal the scaling.
++        if (!heal || !healer || !receiver || receiver->GetTypeId() != TYPEID_UNIT)
++            return heal;
++        if (healer->GetTypeId() == TYPEID_PLAYER || healer->IsControlledByPlayer())
++            return heal;
++
++        Creature* target = receiver->ToCreature();
++        if (!IsScalable(target))
++            return heal;
++
++        return uint32(float(heal) * GetMultiplier(target, Stat::Health));
++    }
++
++    uint32 Manager::CapHit(Unit* attacker, Unit* victim, uint32 damage)
++    {
++        ScaleConfig const& cfg = GetConfig();
++        if (!damage || cfg.hitCapPct <= 0.0f || !attacker || !victim || attacker == victim)
++            return damage;
++        if (attacker->GetTypeId() != TYPEID_UNIT || !victim->GetCharmerOrOwnerPlayerOrPlayerItself())
++            return damage;
++
++        Creature* creature = attacker->ToCreature();
++        if (!IsScalable(creature))
++            return damage;
++
++        // A full group fights stock creatures, cap included.
++        if (GetScaledPlayers(creature) >= GetMaxPlayers(creature->GetMap()))
++            return damage;
++
++        uint32 const cap = std::max(1u, uint32(float(victim->GetMaxHealth()) * cfg.hitCapPct / 100.0f));
++        return std::min(damage, cap);
++    }
++
++    // ------------------------------------------------------------------
++    // Honor
++    // ------------------------------------------------------------------
++
++    void Manager::OnCreatureKilled(Creature* killed, Player* rewardedPlayer)
++    {
++        ScaleConfig const& cfg = GetConfig();
++        if (!cfg.enable || !cfg.honorEnable || !rewardedPlayer || !IsScaledMap(killed->GetMap()))
++            return;
++
++        if (killed->IsPet() || killed->IsControlledByPlayer() || killed->GetCharmerOrOwnerPlayerOrPlayerItself())
++            return;
++        if (killed->GetCreatureType() == CREATURE_TYPE_CRITTER)
++            return;
++        if (cfg.honorIgnoreSummons && killed->IsSummon())
++            return;
++
++        Rank const rank = GetBaseRank(killed);
++        uint32 const amount = cfg.honor[uint8(rank)];
++        if (!amount)
++            return;
++
++        auto reward = [&](Player* player)
++        {
++            if (player->GetMap() != killed->GetMap() || !player->IsAtGroupRewardDistance(killed))
++                return;
++            if (cfg.honorIgnoreGrayMobs && killed->GetLevel() <= Trinity::XP::GetGrayLevel(player->GetLevel()))
++                return;
++
++            // Honor is stored in hundredths (the client shows the total / 100), so convert whole points first.
++            CurrencyTypesEntry const* honorEntry = sCurrencyTypesStore.LookupEntry(CURRENCY_TYPE_HONOR_POINTS);
++            int32 const precision = (honorEntry && (honorEntry->Flags & CURRENCY_FLAG_HIGH_PRECISION)) ? CURRENCY_PRECISION : 1;
++            player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount) * precision);
++            TC_LOG_DEBUG("scripts", "[DungeonScale] %s earned %u honor for killing %s (%u, %s).",
++                player->GetName().c_str(), amount, killed->GetName().c_str(), killed->GetEntry(), RankName(rank));
++        };
++
++        if (Group* group = rewardedPlayer->GetGroup())
++        {
++            for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
++                if (Player* member = itr->GetSource())
++                    reward(member);
++        }
++        else
++            reward(rewardedPlayer);
++    }
++}
+diff --git a/src/server/scripts/Custom/DungeonScale/DungeonScale.h b/src/server/scripts/Custom/DungeonScale/DungeonScale.h
+new file mode 100644
+index 0000000..a89ece7
+--- /dev/null
++++ b/src/server/scripts/Custom/DungeonScale/DungeonScale.h
+@@ -0,0 +1,164 @@
++/*
++* DungeonScale: scales dungeon creatures to the number of players inside the instance, caps how hard a
++* single hit from a scaled creature can land, and awards honor for dungeon kills by the creature's rank.
++*
++* Ported from mod-dungeon-scale (SkyFire 5.4.8, xxciv/548DS). Settings live in worldserver.conf.
++*/
++
++#ifndef DUNGEON_SCALE_H
++#define DUNGEON_SCALE_H
++
++#include "Define.h"
++
++#include <array>
++#include <atomic>
++#include <memory>
++#include <mutex>
++#include <string>
++#include <unordered_map>
++#include <unordered_set>
++#include <vector>
++
++class Creature;
++class Map;
++class Player;
++class Unit;
++
++namespace DungeonScale
++{
++    // How a creature is treated for scaling and honor purposes.
++    enum class Rank : uint8
++    {
++        Normal   = 0,
++        Elite    = 1,
++        MiniBoss = 2,
++        EndBoss  = 3,
++    };
++    constexpr std::size_t RANK_COUNT = 4;
++
++    // Which family of multipliers an instance uses.
++    enum class Content : uint8
++    {
++        Dungeon  = 0,
++        Raid     = 1,
++        Scenario = 2,
++    };
++    constexpr std::size_t CONTENT_COUNT = 3;
++
++    enum class Stat : uint8
++    {
++        Health = 0,
++        Damage = 1,
++    };
++    constexpr std::size_t STAT_COUNT = 2;
++
++    char const* RankName(Rank rank);
++    char const* ContentName(Content content);
++
++    // Per-map overrides from DungeonScale.Map.<mapId>.* keys. A negative value means "not set".
++    struct MapOverride
++    {
++        int8 enable = -1;
++        std::array<float, STAT_COUNT> allRanks = { { -1.0f, -1.0f } };
++        std::array<std::array<float, RANK_COUNT>, STAT_COUNT> perRank = { { { { -1.0f, -1.0f, -1.0f, -1.0f } }, { { -1.0f, -1.0f, -1.0f, -1.0f } } } };
++    };
++
++    // Immutable snapshot of the DungeonScale.* settings. A new one is built on every (re)load.
++    struct ScaleConfig
++    {
++        bool enable = false;
++        std::array<bool, CONTENT_COUNT> contentEnabled = { { true, false, false } };
++        bool challengeModeEnabled = false;
++        uint32 minPlayers = 1;
++        bool summonsInheritBossScaling = true;
++        std::unordered_set<uint32> ignoredEntries;
++
++        // soloValue[content][stat][rank] = multiplier when the instance holds MinPlayers players.
++        std::array<std::array<std::array<float, RANK_COUNT>, STAT_COUNT>, CONTENT_COUNT> soloValue{};
++
++        std::unordered_map<uint32, MapOverride> mapOverrides;
++        std::unordered_map<uint32, Rank> rankOverrides;
++
++        // Largest share of the victim's max health one hit from a scaled creature may deal (0 = no cap).
++        float hitCapPct = 35.0f;
++
++        bool honorEnable = true;
++        std::array<uint32, RANK_COUNT> honor = { { 1, 5, 10, 25 } };
++        bool honorIgnoreSummons = true;
++        bool honorIgnoreGrayMobs = false;
++    };
++
++    // What one creature is currently scaled for.
++    struct CreatureScale
++    {
++        uint32 players = 0;
++        uint32 generation = 0;
++    };
++
++    // Everything the module knows about one instance. Only ever touched by the thread updating that map.
++    struct InstanceState
++    {
++        std::unordered_map<Creature*, CreatureScale> creatures;
++        uint32 players = 0;             // effective player count the instance should be scaled for
++        uint32 generation = 0;          // config generation the instance should be scaled for
++        bool pending = false;           // some creatures still wait (in combat) for the values above
++        uint32 lastRefresh = 0;         // getMSTime() of the last refresh from a player update
++    };
++
++    class Manager
++    {
++    public:
++        static Manager* instance();
++
++        void LoadConfig(bool reload);
++        ScaleConfig const& GetConfig() const { return *_config.load(std::memory_order_acquire); }
++
++        // Instance / creature queries
++        bool IsScaledMap(Map const* map) const;
++        bool IsScalable(Creature const* creature) const;
++        Rank GetBaseRank(Creature const* creature) const;       // rank used for honor
++        Rank GetScalingRank(Creature const* creature) const;    // rank used for stats (summons may inherit)
++        uint32 GetMaxPlayers(Map const* map) const;
++        uint32 GetEffectivePlayers(Map const* map) const;
++        uint32 GetScaledPlayers(Creature const* creature);      // player count this creature is scaled for right now
++        float GetMultiplier(Map const* map, Rank rank, Stat stat, uint32 players) const;
++        float GetMultiplier(Creature const* creature, Stat stat);
++
++        // Hooks
++        void OnCreatureAddWorld(Creature* creature);
++        void OnCreatureRemoveWorld(Creature* creature);
++        void OnCreatureSelectLevel(Creature* creature);
++        void OnCreatureKilled(Creature* killed, Player* rewardedPlayer);
++        uint32 ScaleDamage(Unit* target, Unit* attacker, uint32 damage);
++        uint32 ScaleHeal(Unit* healer, Unit* receiver, uint32 heal);
++        uint32 CapHit(Unit* attacker, Unit* victim, uint32 damage);
++        void OnPlayerUpdate(Player* player);                    // refreshes the player's instance about once a second
++
++        // Picks up player count / config changes. Creatures out of combat are rescaled right away,
++        // creatures in combat keep their values until they leave combat. Must run on the thread
++        // updating that map (player updates, damage / heal hooks, GM commands).
++        void RefreshInstance(Map* map);
++
++    private:
++        Manager();
++
++        bool IsEndBoss(Creature const* creature) const;
++        void Track(Creature* creature);
++        void ApplyHealth(Creature* creature, uint32 players) const;
++
++        InstanceState* FindState(Map const* map);
++        InstanceState& GetOrCreateState(Map const* map);
++        void EraseState(Map const* map);
++
++        std::atomic<ScaleConfig const*> _config;
++        std::vector<std::unique_ptr<ScaleConfig>> _configs;          // old snapshots stay alive: readers never lock
++        std::atomic<uint32> _generation;
++
++        std::mutex _stateLock;                                  // guards the _states container, not its values
++        std::unordered_map<uint64, InstanceState> _states;
++    };
++}
++
++#define sDungeonScale DungeonScale::Manager::instance()
++
++#endif
+diff --git a/src/server/scripts/Custom/DungeonScale/DungeonScaleScripts.cpp b/src/server/scripts/Custom/DungeonScale/DungeonScaleScripts.cpp
+new file mode 100644
+index 0000000..41e261d
+--- /dev/null
++++ b/src/server/scripts/Custom/DungeonScale/DungeonScaleScripts.cpp
+@@ -0,0 +1,184 @@
++/*
++* DungeonScale: script hooks and GM commands.
++*/
++
++#include "DungeonScale.h"
++
++#include "Chat.h"
++#include "Creature.h"
++#include "Map.h"
++#include "Player.h"
++#include "ScriptMgr.h"
++
++using namespace DungeonScale;
++
++class DungeonScale_WorldScript : public WorldScript
++{
++public:
++    DungeonScale_WorldScript() : WorldScript("DungeonScale_WorldScript") { }
++
++    void OnConfigLoad(bool reload) override
++    {
++        sDungeonScale->LoadConfig(reload);
++    }
++};
++
++class DungeonScale_AllCreatureScript : public AllCreatureScript
++{
++public:
++    DungeonScale_AllCreatureScript() : AllCreatureScript("DungeonScale_AllCreatureScript") { }
++
++    void OnCreatureAddWorld(Creature* creature) override
++    {
++        sDungeonScale->OnCreatureAddWorld(creature);
++    }
++
++    void OnCreatureRemoveWorld(Creature* creature) override
++    {
++        sDungeonScale->OnCreatureRemoveWorld(creature);
++    }
++
++    void OnCreatureSelectLevel(Creature* creature) override
++    {
++        sDungeonScale->OnCreatureSelectLevel(creature);
++    }
++
++    void OnCreatureKilled(Creature* killed, Player* rewardedPlayer) override
++    {
++        sDungeonScale->OnCreatureKilled(killed, rewardedPlayer);
++    }
++};
++
++class DungeonScale_UnitScript : public UnitScript
++{
++public:
++    DungeonScale_UnitScript() : UnitScript("DungeonScale_UnitScript") { }
++
++    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
++    {
++        damage = sDungeonScale->ScaleDamage(target, attacker, damage);
++    }
++
++    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage) override
++    {
++        if (damage > 0)
++            damage = int32(sDungeonScale->ScaleDamage(target, attacker, uint32(damage)));
++    }
++
++    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, int32& damage) override
++    {
++        if (damage > 0)
++            damage = int32(sDungeonScale->ScaleDamage(target, attacker, uint32(damage)));
++    }
++
++    void OnHeal(Unit* healer, Unit* receiver, uint32& gain) override
++    {
++        gain = sDungeonScale->ScaleHeal(healer, receiver, gain);
++    }
++
++    // Runs on the final damage (after armor, crits and absorbs), so the cap is the most a hit can take off.
++    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
++    {
++        damage = sDungeonScale->CapHit(attacker, victim, damage);
++    }
++};
++
++class DungeonScale_PlayerScript : public PlayerScript
++{
++public:
++    DungeonScale_PlayerScript() : PlayerScript("DungeonScale_PlayerScript") { }
++
++    // Player updates run on the thread updating the player's map, so the instance can be refreshed safely here.
++    void OnUpdate(Player* player, uint32 /*diff*/) override
++    {
++        sDungeonScale->OnPlayerUpdate(player);
++    }
++};
++
++class DungeonScale_CommandScript : public CommandScript
++{
++public:
++    DungeonScale_CommandScript() : CommandScript("DungeonScale_CommandScript") { }
++
++    std::vector<ChatCommand> GetCommands() const override
++    {
++        static std::vector<ChatCommand> dungeonScaleCommandTable =
++        {
++            { "info",     SEC_GAMEMASTER, false, &HandleInfoCommand,     "" },
++            { "creature", SEC_GAMEMASTER, false, &HandleCreatureCommand, "" },
++        };
++        static std::vector<ChatCommand> commandTable =
++        {
++            { "dungeonscale", SEC_GAMEMASTER, false, dungeonScaleCommandTable },
++        };
++        return commandTable;
++    }
++
++    // .dungeonscale info - scaling state of the instance you are in
++    static bool HandleInfoCommand(ChatHandler* handler, char const* /*args*/)
++    {
++        Player* player = handler->GetSession()->GetPlayer();
++        Map* map = player->GetMap();
++        ScaleConfig const& cfg = sDungeonScale->GetConfig();
++        sDungeonScale->RefreshInstance(map);
++
++        handler->PSendSysMessage("[DungeonScale] Module: %s | Hit cap: %.0f%% of max health | Honor: %s",
++            cfg.enable ? "ENABLED" : "disabled", cfg.hitCapPct, cfg.honorEnable ? "on" : "off");
++        handler->PSendSysMessage("Map %u (%s), difficulty %u, instance %u", map->GetId(), map->GetMapName(), uint32(map->GetDifficulty()), map->GetInstanceId());
++
++        if (!sDungeonScale->IsScaledMap(map))
++        {
++            handler->PSendSysMessage("This map is NOT scaled (not an instance, content type disabled, challenge mode, or DungeonScale.Map.%u.Enable = 0).", map->GetId());
++            return true;
++        }
++
++        uint32 const players = sDungeonScale->GetEffectivePlayers(map);
++        handler->PSendSysMessage("Scaling for %u of %u player(s) (%u non-GM player(s) inside).", players, sDungeonScale->GetMaxPlayers(map), map->GetPlayersCountExceptGMs());
++        for (uint8 r = 0; r < RANK_COUNT; ++r)
++        {
++            Rank const rank = Rank(r);
++            handler->PSendSysMessage("  %-8s health x%.3f  damage x%.3f  honor %u", RankName(rank),
++                sDungeonScale->GetMultiplier(map, rank, Stat::Health, players),
++                sDungeonScale->GetMultiplier(map, rank, Stat::Damage, players),
++                cfg.honor[r]);
++        }
++        return true;
++    }
++
++    // .dungeonscale creature - how the selected creature is classified and scaled
++    static bool HandleCreatureCommand(ChatHandler* handler, char const* /*args*/)
++    {
++        Creature* creature = handler->getSelectedCreature();
++        if (!creature)
++        {
++            handler->SendSysMessage("[DungeonScale] Select a creature first.");
++            handler->SetSentErrorMessage(true);
++            return false;
++        }
++
++        sDungeonScale->RefreshInstance(creature->GetMap());
++        handler->PSendSysMessage("[DungeonScale] %s (entry %u, template rank %u)", creature->GetName().c_str(), creature->GetEntry(), creature->GetCreatureTemplate()->rank);
++        if (!sDungeonScale->IsScalable(creature))
++        {
++            handler->SendSysMessage("Not scaled (player-owned, friendly vehicle, ignored entry, or map not scaled).");
++            return true;
++        }
++
++        handler->PSendSysMessage("Rank: %s (scaled as %s), scaled for %u player(s)%s", RankName(sDungeonScale->GetBaseRank(creature)),
++            RankName(sDungeonScale->GetScalingRank(creature)), sDungeonScale->GetScaledPlayers(creature),
++            creature->IsInCombat() ? ", in combat" : "");
++        handler->PSendSysMessage("Health x%.3f: %u / %u (unscaled base %u)", sDungeonScale->GetMultiplier(creature, Stat::Health),
++            creature->GetHealth(), creature->GetMaxHealth(), creature->GetCreateHealth());
++        handler->PSendSysMessage("Damage x%.3f", sDungeonScale->GetMultiplier(creature, Stat::Damage));
++        return true;
++    }
++};
++
++void AddSC_dungeon_scale()
++{
++    new DungeonScale_WorldScript();
++    new DungeonScale_AllCreatureScript();
++    new DungeonScale_UnitScript();
++    new DungeonScale_PlayerScript();
++    new DungeonScale_CommandScript();
++}
+diff --git a/src/server/scripts/ScriptLoader/ScriptLoader.cpp b/src/server/scripts/ScriptLoader/ScriptLoader.cpp
+index b88131b..29379ad 100644
+--- a/src/server/scripts/ScriptLoader/ScriptLoader.cpp
++++ b/src/server/scripts/ScriptLoader/ScriptLoader.cpp
+@@ -2144,6 +2144,7 @@ void AddSC_npc_teleport();
+ void AddSC_custom_reward();
+ void AddSC_battle_pay_items();
+ void AddSC_solocraft_system();
++void AddSC_dungeon_scale();
+ 
+ void AddCustomScripts()
+ {
+@@ -2153,6 +2154,7 @@ AddSC_npc_teleport();
+ AddSC_custom_reward();
+ AddSC_battle_pay_items();
+ AddSC_solocraft_system();
++AddSC_dungeon_scale();
+ 
+ #endif
+     AddSC_Anticheat();
+diff --git a/src/server/worldserver/worldserver.conf.dist b/src/server/worldserver/worldserver.conf.dist
+index 5bbb6e8..92293a4 100644
+--- a/src/server/worldserver/worldserver.conf.dist
++++ b/src/server/worldserver/worldserver.conf.dist
+@@ -4436,3 +4436,175 @@ Solocraft.TempleOfTheJadeSerpentH = 5.0
+ Solocraft.StormstoutBreweryH = 5.0
+ Solocraft.ArgentTournamentRaidH10 = 10.0
+ Solocraft.ArgentTournamentRaidH25 = 25.0
++
++###############################################################################
++# DUNGEON SCALE
++#   Scales dungeon creatures to the number of players inside the instance,
++#   caps how hard one hit can land, and awards honor for dungeon kills.
++#   Replaces Solocraft's stat buffs: set SoloCraft.Stats.Mult = 0,
++#   SoloCraft.Spellpower.Mult = 0 and SoloCraft.DamageTaken.Pct = 100 so mobs
++#   are not scaled twice (SoloCraft.Money.Pct can stay for the gold penalty).
++#
++# HOW SCALING WORKS
++#   Every multiplier below is the value used when ONE player is inside.
++#   It rises in a straight line to 1.0 at a full group, so a full group
++#   always fights stock mobs.
++#     5-man dungeon, value 0.30:
++#       1 player 0.30 | 2 players 0.475 | 3 players 0.65 | 4 players 0.825 | 5 players 1.00
++#   Health - the creature's max health (its current health % is kept).
++#   Damage - all damage the creature deals: melee, spells and DoTs.
++#   When a player joins or leaves, creatures out of combat are rescaled
++#   within a second; creatures in combat keep their values until the fight
++#   ends for them.
++#
++# RANKS
++#   Normal   - non-elite mobs (and rares).
++#   Elite    - elite and rare-elite mobs (most dungeon trash).
++#   MiniBoss - any boss that is NOT the final boss of the instance.
++#   EndBoss  - the final boss (lastEncounterDungeon in `instance_encounters`).
++#   Adds and triggers summoned by a boss are scaled like that boss.
++#
++# GM COMMANDS (GM level 1+)
++#   .dungeonscale info       - scaling state of the instance you are in
++#   .dungeonscale creature   - rank / multipliers of the selected creature
++#   GMs with GM mode ON do not count as players.
++#
++#   Changes take effect with ".reload config" (creatures out of combat are
++#   rescaled within a second).
++###############################################################################
++
++#    DungeonScale.Enable
++#        Description: Master switch (scaling, hit cap and honor).
++#        Default:     0 - Disabled when the setting is missing
++
++DungeonScale.Enable = 1
++
++#    DungeonScale.Dungeon.Enable / DungeonScale.Raid.Enable / DungeonScale.Scenario.Enable
++#        Description: Which kinds of instances are scaled.
++#                     A per-map DungeonScale.Map.<id>.Enable setting always wins.
++#        Default:     1 - Dungeons (5-man)
++#                     0 - Raids
++#                     0 - Scenarios
++
++DungeonScale.Dungeon.Enable = 1
++DungeonScale.Raid.Enable = 0
++DungeonScale.Scenario.Enable = 0
++
++#    DungeonScale.ChallengeMode.Enable
++#        Description: Scale Challenge Mode dungeons too.
++#        Default:     0 - Challenge Modes are never scaled
++
++DungeonScale.ChallengeMode.Enable = 0
++
++#    DungeonScale.MinPlayers
++#        Description: Scaling never assumes fewer players than this.
++#                     Example: 2 makes a solo player face the "2 players" values.
++#        Default:     1
++
++DungeonScale.MinPlayers = 1
++
++#    DungeonScale.Summons.InheritBossScaling
++#        Description: Creatures summoned by a MiniBoss / EndBoss use the boss's multipliers.
++#        Default:     1 - Enabled
++
++DungeonScale.Summons.InheritBossScaling = 1
++
++#    DungeonScale.IgnoreEntries
++#        Description: Comma separated creature entries that are never scaled
++#                     (e.g. encounter NPCs whose health is set by their script).
++#        Example:     "12345, 67890"
++#        Default:     ""
++
++DungeonScale.IgnoreEntries = ""
++
++#    DungeonScale.<Dungeon|Raid|Scenario>.<Health|Damage>.<Normal|Elite|MiniBoss|EndBoss>
++#        Description: Multiplier with ONE player inside. Valid range 0.01 - 10.0
++#                     (above 1.0 makes small groups face HARDER mobs).
++
++DungeonScale.Dungeon.Health.Normal   = 0.30
++DungeonScale.Dungeon.Health.Elite    = 0.30
++DungeonScale.Dungeon.Health.MiniBoss = 0.35
++DungeonScale.Dungeon.Health.EndBoss  = 0.40
++
++DungeonScale.Dungeon.Damage.Normal   = 0.30
++DungeonScale.Dungeon.Damage.Elite    = 0.30
++DungeonScale.Dungeon.Damage.MiniBoss = 0.35
++DungeonScale.Dungeon.Damage.EndBoss  = 0.35
++
++# Raids (only used when DungeonScale.Raid.Enable = 1; the curve runs to the raid size)
++DungeonScale.Raid.Health.Normal      = 0.08
++DungeonScale.Raid.Health.Elite       = 0.08
++DungeonScale.Raid.Health.MiniBoss    = 0.10
++DungeonScale.Raid.Health.EndBoss     = 0.12
++DungeonScale.Raid.Damage.Normal      = 0.15
++DungeonScale.Raid.Damage.Elite       = 0.15
++DungeonScale.Raid.Damage.MiniBoss    = 0.15
++DungeonScale.Raid.Damage.EndBoss     = 0.15
++
++# Scenarios (3-man; only used when DungeonScale.Scenario.Enable = 1)
++DungeonScale.Scenario.Health.Normal   = 0.45
++DungeonScale.Scenario.Health.Elite    = 0.45
++DungeonScale.Scenario.Health.MiniBoss = 0.50
++DungeonScale.Scenario.Health.EndBoss  = 0.50
++DungeonScale.Scenario.Damage.Normal   = 0.50
++DungeonScale.Scenario.Damage.Elite    = 0.50
++DungeonScale.Scenario.Damage.MiniBoss = 0.50
++DungeonScale.Scenario.Damage.EndBoss  = 0.50
++
++#    DungeonScale.Map.<mapId>.Enable = 0|1          turn scaling + honor off/on for one map
++#    DungeonScale.Map.<mapId>.Health = <value>      every rank's solo health on that map
++#    DungeonScale.Map.<mapId>.Damage = <value>      every rank's solo damage on that map
++#    DungeonScale.Map.<mapId>.Health.<Rank> = <v>   one rank (wins over the line above)
++#    DungeonScale.Map.<mapId>.Damage.<Rank> = <v>
++#        Description: Per-dungeon overrides; anything left out uses the values above.
++#                     ".dungeonscale info" (or ".gps") shows the map id.
++#                     36 Deadmines, 959 Shado-Pan Monastery, 960 Temple of the Jade Serpent,
++#                     961 Stormstout Brewery, 962 Gate of the Setting Sun, 994 Mogu'shan Palace,
++#                     1001 Scarlet Halls, 1004 Scarlet Monastery, 1007 Scholomance,
++#                     1011 Siege of Niuzao Temple
++#        Example:     DungeonScale.Map.961.Damage = 0.25
++
++#    DungeonScale.RankOverride
++#        Description: Force the rank of creature entries, for scaling AND honor.
++#                     Format: "entry:Rank, entry:Rank" (Normal | Elite | MiniBoss | EndBoss)
++#        Example:     "56448:EndBoss, 59051:MiniBoss"
++#        Default:     ""
++
++DungeonScale.RankOverride = ""
++
++#    DungeonScale.HitCap.Pct
++#        Description: No single hit (or DoT tick) from a scaled creature takes more
++#                     than this percent of the victim's max health. Applies to
++#                     players and their pets while the group is not full.
++#                     The combat log still shows the uncapped number.
++#        Default:     35 - 0 disables the cap
++
++DungeonScale.HitCap.Pct = 35
++
++#    DungeonScale.Honor.Enable
++#        Description: Award honor for kills in scaled instances. Every group member
++#                     inside and in reward range gets the full amount (not split).
++#                     Honor caps still apply.
++#        Default:     1 - Enabled
++
++DungeonScale.Honor.Enable = 1
++
++#    DungeonScale.Honor.<Rank>
++#        Description: Honor per kill for each rank. 0 disables that rank.
++
++DungeonScale.Honor.Normal   = 1
++DungeonScale.Honor.Elite    = 5
++DungeonScale.Honor.MiniBoss = 10
++DungeonScale.Honor.EndBoss  = 25
++
++#    DungeonScale.Honor.IgnoreSummons
++#        Description: No honor for summoned creatures (boss adds, spawned waves).
++#        Default:     1
++
++DungeonScale.Honor.IgnoreSummons = 1
++
++#    DungeonScale.Honor.IgnoreGrayMobs
++#        Description: No honor for mobs that are gray to the player.
++#        Default:     0 - Gray mobs still give honor
++
++DungeonScale.Honor.IgnoreGrayMobs = 0

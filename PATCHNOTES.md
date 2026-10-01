@@ -3,7 +3,64 @@
 Newest first. Each entry says what changed, which files it touches, and what you need to do to pick it up
 (rebuild, restart, re-run SQL, edit config).
 
+## 2026-10-01
+
+**DungeonScale: honor fix** (`tools/pandaria/dungeon-scale.patch`)
+- Dungeon kills gave no visible honor. The core stores honor in hundredths (the client shows the total
+  divided by 100), but DungeonScale added whole points as-is, so a 5-honor kill added 0.05 honor.
+  `DungeonScale.cpp` now converts to the stored unit, so kills give 1 / 5 / 10 / 25 honor as configured.
+  Honor already earned from earlier runs stays as the small fraction it was.
+- To pick up on a source tree that already has the patch, in `~/pandaria/source` (only that file recompiles):
+  ```sh
+  sed -i 's|^\( *\)player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount));|\1// Honor is stored in hundredths (the client shows the total / 100), so convert whole points first.\n\1CurrencyTypesEntry const* honorEntry = sCurrencyTypesStore.LookupEntry(CURRENCY_TYPE_HONOR_POINTS);\n\1int32 const precision = (honorEntry \&\& (honorEntry->Flags \& CURRENCY_FLAG_HIGH_PRECISION)) ? CURRENCY_PRECISION : 1;\n\1player->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(amount) * precision);|' src/server/scripts/Custom/DungeonScale/DungeonScale.cpp
+  ```
+  then `make install` in `build` and restart `worldserver`.
+
+**DungeonScale signed off** (several solo Deadmines runs)
+- Confirmed in game: honor per kill (1 trash, 5 elite), loot and gold, pickpocketing, no kill XP, and
+  difficulty that feels right through the dungeon. DungeonScale and the Solocraft settings patch are merged
+  into `main`, so a plain `git pull` in the tools repo is enough from now on.
+- Next, when wanted: solo enrage-timer handling, moving the gold penalty out of Solocraft (then removing
+  Solocraft), and per-dungeon tuning with the `DungeonScale.Map.<id>.*` overrides.
+
+## 2026-09-29
+
+**DungeonScale: loot fix** (`tools/pandaria/dungeon-scale.patch`)
+- Scaled dungeon mobs dropped no loot, gold or honor. The core only rewards a kill once players have dealt
+  half the mob's health, and that amount was set from the mob's unscaled health, so a mob shrunk to 30% could
+  never meet it. `DungeonScale.cpp` now resets that requirement whenever it scales a mob's health.
+- To pick up on a source tree that already has the earlier version: add the line with
+  `sed -i 's|^\(\s*\)creature->SetHealth(std::max(1u, std::min(health, maxHealth)));|&\n\1creature->ResetPlayerDamageReq();|' src/server/scripts/Custom/DungeonScale/DungeonScale.cpp`,
+  then `make install` in `build` (only that file recompiles) and restart `worldserver`. Re-applying the whole
+  patch also works but rewrites `ScriptMgr.h`, which forces a near-full rebuild.
+
+**DungeonScale playtest** (live server, solo, Deadmines up to and including the first boss)
+- Checked and working: scaled trash and first boss, loot and gold from kills, rogue pickpocketing,
+  no kill XP (`Rate.XP.Kill = 0`). The first boss's difficulty felt right at the default multipliers.
+- Solocraft is now neutral (`SoloCraft.Stats.Mult = 0`, `SoloCraft.Spellpower.Mult = 0`,
+  `SoloCraft.DamageTaken.Pct = 100`) and only applies its gold penalty (`SoloCraft.Money.Pct`).
+- Still to test: the rest of the dungeon (end boss, the 35% hit cap on big hits), a MoP dungeon, and a
+  second player joining mid-run.
+
 ## 2026-09-28
+
+**DungeonScale: dungeon mobs scale to the group** (`tools/pandaria/dungeon-scale.patch`, guide section 12)
+- New script scales 5-man dungeon creatures to the number of players inside: health and damage per rank
+  (solo trash 30% / 30%, mini-bosses 35% / 35%, end bosses 40% / 35%, straight line to 100% at 5 players).
+  Boss adds use the boss's values. Replaces Solocraft's stat buffs, which should now be set to neutral.
+- When someone joins or leaves, only mobs out of combat are rescaled.
+- No single hit or DoT tick from a scaled mob takes more than 35% of your max health (`DungeonScale.HitCap.Pct`).
+- Honor per dungeon kill: 1 trash / 5 elite / 10 mini-boss / 25 end boss.
+- GM commands `.dungeonscale info` and `.dungeonscale creature`.
+- New files: `src/server/scripts/Custom/DungeonScale/` (`DungeonScale.h`, `DungeonScale.cpp`, `DungeonScaleScripts.cpp`).
+- Core files touched: `ScriptMgr.h` / `ScriptMgr.cpp` (new `AllCreatureScript` hooks: creature added,
+  removed, level set, killed), `Creature.cpp` (calls the first three), `Unit.cpp` (calls the kill hook after
+  kill rewards), `ScriptLoader.cpp` (registers the script), `worldserver.conf.dist` (new `DungeonScale.*` settings).
+- Fix to the Solocraft patch: `SpellAuraEffects.cpp` called the DoT damage hook twice per tick, so
+  `SoloCraft.DamageTaken.Pct` hit DoTs twice (30% became 9%). The duplicate call is removed.
+- To pick up: apply the patch after the Solocraft patch, run `cmake .` in `build` (new source files), rebuild (near-full rebuild, because `ScriptMgr.h` changed),
+  copy the `DUNGEON SCALE` block into `worldserver.conf`, set Solocraft's stat and damage settings to neutral
+  (guide section 12), restart `worldserver`. The Helix SQL can stay: his damage works out about the same.
 
 **Deadmines: Helix Gearbreaker melee** (`tools/pandaria/sql/2026_09_28_deadmines_helix_melee.sql`)
 - Normal-mode Helix (entry 47296) swings every 0.5 s with a 57.5× damage multiplier, which burns a solo

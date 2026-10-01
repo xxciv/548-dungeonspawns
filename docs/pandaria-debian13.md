@@ -333,3 +333,50 @@ SoloCraft.Money.Pct = 30
 
 Solocraft reads its settings only when `worldserver` starts, so `.reload config` doesn't change
 them: restart the server, then leave and re-enter the instance.
+
+## 12. DungeonScale: scale dungeon mobs to the group (optional)
+
+`tools/pandaria/dungeon-scale.patch` adds a script that shrinks dungeon **creatures** to the number of
+players inside, instead of inflating the player like Solocraft does. It is a port of `mod-dungeon-scale`
+from the 548DS repo. Apply it **after** the Solocraft patch from section 11:
+
+```sh
+cd ~/pandaria/source
+git apply ../tools-repo/tools/pandaria/dungeon-scale.patch
+cd build && cmake . && make -j"$(nproc)" install
+```
+
+`cmake .` is needed because the patch adds new source files, and cmake only picks those up when it runs
+(it reuses your existing options). This is a near-full rebuild, because the patch adds hooks to `ScriptMgr.h`.
+
+What it does, with the defaults:
+
+| Rule | Default |
+|---|---|
+| Health and damage multipliers per rank for a solo player, rising in a straight line to 1.0 at 5 players | trash 0.30 / 0.30, mini-boss 0.35 / 0.35, end boss 0.40 / 0.35 |
+| Adds summoned by a boss use the boss's multipliers | on |
+| When someone joins or leaves, only mobs **out of combat** are rescaled; mobs in a fight keep their values | always |
+| No single hit or DoT tick from a scaled mob takes more than this share of your max health (only while the group isn't full) | `DungeonScale.HitCap.Pct = 35` |
+| Honor per kill: Normal / Elite / MiniBoss / EndBoss, for every group member in range | 1 / 5 / 10 / 25 |
+| Scaled content | 5-man dungeons only; raids, scenarios and Challenge Modes off |
+
+The settings are at the end of the patched `worldserver.conf.dist`. Copy the `DUNGEON SCALE` block into
+your `worldserver.conf`. Unlike Solocraft, `.reload config` picks up changes (mobs out of combat are
+rescaled within a second). Without `DungeonScale.Enable = 1` in your config the script does nothing.
+
+Turn Solocraft's own scaling off so mobs aren't scaled twice, and keep only its gold penalty:
+
+```ini
+SoloCraft.Stats.Mult = 0
+SoloCraft.Spellpower.Mult = 0
+SoloCraft.DamageTaken.Pct = 100
+SoloCraft.Money.Pct = 30
+```
+
+GM commands (GM level 1 and up):
+- `.dungeonscale info`: player count the instance is scaled for, and each rank's multipliers.
+- `.dungeonscale creature`: rank, multipliers and current health of the selected mob.
+
+Per-dungeon tuning goes in `DungeonScale.Map.<mapId>.*` keys (e.g. `DungeonScale.Map.36.Damage = 0.25`
+for Deadmines), and `DungeonScale.RankOverride` fixes a mob the database ranks wrong. The combat log
+shows a capped hit's original number; your health bar shows the capped one.
